@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+models/
+web/node_modules/
+foidfinder/webui/
+deploy/tunnel/
+.env

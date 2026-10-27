@@ -1,0 +1,55 @@
+# Proxy host. Serves the UI from /srv/foidfinder/webui and forwards /api/* to the GPU host's tunnel.
+# The GPU host is untrusted: it gets no client identity, and its responses are served only as sandboxed JSON.
+foidfinder.net {
+	encode zstd gzip
+
+	header {
+		defer
+		-Server
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		Cross-Origin-Opener-Policy same-origin
+		Strict-Transport-Security "max-age=63072000"
+	}
+
+	handle /api/* {
+		request_body {
+			max_size 33MiB
+		}
+		header {
+			defer
+			Content-Type application/json
+			Content-Security-Policy "default-src 'none'; frame-ancestors 'none'; sandbox"
+			Cache-Control no-store
+		}
+		reverse_proxy 127.0.0.1:18000 {
+			header_up -X-Forwarded-For
+			header_up -X-Real-Ip
+			header_up -True-Client-Ip
+			header_up -Cf-Connecting-Ip
+			header_up -Cf-Connecting-Ipv6
+			header_up -Cf-Ipcountry
+			header_up -Cf-Ray
+			header_up -Cf-Visitor
+			header_up -Cdn-Loop
+			header_up -Cookie
+			header_down -Set-Cookie
+			transport http {
+				dial_timeout 5s
+				response_header_timeout 120s
+			}
+		}
+	}
+
+	handle {
+		root * /srv/foidfinder/webui
+		header Content-Security-Policy "default-src 'self'; img-src 'self' blob: data:; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+		header /assets/* Cache-Control "public, max-age=31536000, immutable"
+		header / Cache-Control no-cache
+		file_server
+	}
+}
+
+www.foidfinder.net {
+	redir https://foidfinder.net{uri} permanent
+}

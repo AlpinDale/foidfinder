@@ -1,0 +1,10 @@
+# Allowlist: only what the image build needs.
+**
+!pyproject.toml
+!uv.lock
+!README.md
+!foidfinder/
+!web/
+web/node_modules
+foidfinder/webui
+**/__pycache__

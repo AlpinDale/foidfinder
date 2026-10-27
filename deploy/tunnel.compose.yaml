@@ -1,0 +1,24 @@
+# Reverse SSH tunnel to a proxy host (README, "Behind a proxy"). Set in .env:
+#   COMPOSE_FILE=compose.yaml:deploy/tunnel.compose.yaml
+#   FOIDFINDER_TUNNEL_DESTINATION=user@proxy-host
+#   FOIDFINDER_TUNNEL_SECRETS=<dir with id_ed25519 and known_hosts>  (default deploy/tunnel)
+services:
+  tunnel:
+    build:
+      dockerfile_inline: |
+        FROM alpine:3.22
+        RUN apk add --no-cache autossh openssh-client
+    restart: unless-stopped
+    depends_on: [foidfinder]
+    volumes:
+      - ${FOIDFINDER_TUNNEL_SECRETS:-./deploy/tunnel}:/tunnel:ro
+    environment:
+      AUTOSSH_GATETIME: "0" # keep retrying even if the first connection fails
+    command: >-
+      autossh -M 0 -N
+      -i /tunnel/id_ed25519 -o IdentitiesOnly=yes
+      -o UserKnownHostsFile=/tunnel/known_hosts -o StrictHostKeyChecking=yes
+      -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes
+      -p ${FOIDFINDER_TUNNEL_SSH_PORT:-22}
+      -R 127.0.0.1:${FOIDFINDER_TUNNEL_REMOTE_PORT:-18000}:foidfinder:8000
+      ${FOIDFINDER_TUNNEL_DESTINATION:?set FOIDFINDER_TUNNEL_DESTINATION=user@host in .env}
