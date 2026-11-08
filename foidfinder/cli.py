@@ -86,10 +86,10 @@ def tag(args: argparse.Namespace) -> None:
             print(json.dumps({"path": path, **result}))
             continue
         print(path)
-        for category in ("character", "copyright"):
+        for category, below in result["candidates"].items():
             for entry in result["tags"][category]:
                 print(f"  {category:10s} {entry['score']:.2f}  {entry['tag']}")
-            for entry in result["candidates"][category]:
+            for entry in below:
                 print(f"  {category:10s} {entry['score']:.2f}  {entry['tag']}  (below threshold)")
         print(f"  general    {', '.join(e['tag'] for e in result['tags']['general'])}")
 
@@ -161,6 +161,37 @@ def convert(args: argparse.Namespace) -> None:
     log.info("wrote %s (%.2f GiB of weights); upload with `hf upload <repo> %s`", args.output, size, args.output)
 
 
+def convert_haruka(args: argparse.Namespace) -> None:
+    from .haruka import convert
+
+    convert(haruka_source(args.source), args.output)
+    log.info("wrote %s; run with --model-dir %s", args.output, args.output)
+
+
+def haruka_source(source: str) -> Path:
+    """A local copy of KaraKaraWitch/haruka-tagger, downloading the repo id if `source` is not a directory."""
+    from .haruka import METADATA, WEIGHTS
+
+    src = Path(source)
+    if src.is_dir():
+        return src
+    from huggingface_hub import snapshot_download
+
+    return Path(snapshot_download(source, allow_patterns=[WEIGHTS, METADATA]))
+
+
+def quantize_haruka(args: argparse.Namespace) -> None:
+    from .haruka_quant import quantize
+
+    calib = sorted(p for p in args.calib.iterdir() if p.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp", ".gif"})
+    if not calib:
+        sys.exit(f"no images in {args.calib}")
+    args.output.mkdir(parents=True, exist_ok=True)
+    quantize(haruka_source(args.source), args.output, calib, log.info)
+    size = (args.output / "model.safetensors").stat().st_size / 2**20
+    log.info("wrote %s (%.0f MiB); run with --model-dir %s", args.output, size, args.output)
+
+
 def build_kernels(args: argparse.Namespace) -> None:
     from .backends.cuda.kernels import NAME, build
 
@@ -178,7 +209,7 @@ def main() -> None:
         "--model-dir",
         type=Path,
         default=Path(env("MODEL_DIR", "models/pixai-tagger-v1.0")),
-        help="PixAI checkpoint directory ($FOIDFINDER_MODEL_DIR, default models/pixai-tagger-v1.0)",
+        help="model directory, PixAI or converted Haruka ($FOIDFINDER_MODEL_DIR, default models/pixai-tagger-v1.0)",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -233,6 +264,22 @@ def main() -> None:
     p = sub.add_parser("convert", help="write the int8 checkpoint for the CUDA backend (needs the cuda extra)")
     p.add_argument("output", type=Path)
     p.set_defaults(run=convert)
+
+    p = sub.add_parser("convert-haruka", help="convert Haruka Tagger for the MLX backend")
+    p.add_argument(
+        "source",
+        nargs="?",
+        default="KaraKaraWitch/haruka-tagger",
+        help="Hugging Face repo id or a local copy of it (default KaraKaraWitch/haruka-tagger)",
+    )
+    p.add_argument("output", type=Path, help="directory to pass as --model-dir")
+    p.set_defaults(run=convert_haruka)
+
+    p = sub.add_parser("quantize-haruka", help="write the compressed Haruka checkpoint for downloading (needs mlx)")
+    p.add_argument("source", help="Hugging Face repo id or a local copy of KaraKaraWitch/haruka-tagger")
+    p.add_argument("output", type=Path)
+    p.add_argument("--calib", type=Path, required=True, help="directory of calibration images (about 1,500)")
+    p.set_defaults(run=quantize_haruka)
 
     p = sub.add_parser("build-kernels", help="compile the CUDA kernels ahead of time (for FOIDFINDER_KERNELS)")
     p.add_argument("build_dir", type=Path)

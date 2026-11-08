@@ -8,7 +8,6 @@ const item = (id: string): Item => ({
   name: id,
   url: `blob:${id}`,
   status: "queued",
-  busyRetries: 0,
 });
 
 const three = queueReducer(initialQueue, { type: "add", items: [item("a"), item("b"), item("c")] });
@@ -31,13 +30,5 @@ describe("queueReducer", () => {
   it("clamps keyboard movement at both ends", () => {
     expect(queueReducer({ ...three, selectedId: "c" }, { type: "move", delta: 1 }).selectedId).toBe("c");
     expect(queueReducer({ ...three, selectedId: "a" }, { type: "move", delta: -1 }).selectedId).toBe("a");
-  });
-
-  it("counts busy requeues but resets them on a manual retry", () => {
-    let s = queueReducer(three, { type: "requeue", id: "a", busy: true });
-    s = queueReducer(s, { type: "requeue", id: "a", busy: true });
-    expect(s.items[0]?.busyRetries).toBe(2);
-    s = queueReducer(s, { type: "requeue", id: "a", busy: false });
-    expect(s.items[0]?.busyRetries).toBe(0);
   });
 });

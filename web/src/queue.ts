@@ -1,6 +1,6 @@
-import type { TagResult } from "./api";
+import type { TagResult } from "./tagger";
 
-export type Status = "queued" | "uploading" | "done" | "error";
+export type Status = "queued" | "running" | "done" | "error";
 
 export interface Item {
   id: string;
@@ -13,8 +13,6 @@ export interface Item {
   error?: string;
   /** Whether a manual retry can help. */
   retryable?: boolean;
-  /** Automatic retries spent on 503 answers. */
-  busyRetries: number;
 }
 
 export interface QueueState {
@@ -27,7 +25,7 @@ export type Action =
   | { type: "start"; id: string }
   | { type: "succeed"; id: string; result: TagResult }
   | { type: "fail"; id: string; error: string; retryable: boolean }
-  | { type: "requeue"; id: string; busy: boolean }
+  | { type: "requeue"; id: string }
   | { type: "remove"; id: string }
   | { type: "clear" }
   | { type: "select"; id: string }
@@ -45,7 +43,7 @@ export function queueReducer(state: QueueState, action: Action): QueueState {
       if (action.items.length === 0) return state;
       return { items: [...state.items, ...action.items], selectedId: action.items[0]?.id ?? state.selectedId };
     case "start":
-      return update(state, action.id, (item) => ({ ...item, status: "uploading", error: undefined }));
+      return update(state, action.id, (item) => ({ ...item, status: "running", error: undefined }));
     case "succeed":
       return update(state, action.id, (item) => ({ ...item, status: "done", result: action.result }));
     case "fail":
@@ -56,12 +54,7 @@ export function queueReducer(state: QueueState, action: Action): QueueState {
         retryable: action.retryable,
       }));
     case "requeue":
-      return update(state, action.id, (item) => ({
-        ...item,
-        status: "queued",
-        error: undefined,
-        busyRetries: action.busy ? item.busyRetries + 1 : 0,
-      }));
+      return update(state, action.id, (item) => ({ ...item, status: "queued", error: undefined }));
     case "remove": {
       const index = state.items.findIndex((item) => item.id === action.id);
       if (index < 0) return state;

@@ -28,15 +28,16 @@ class StubBackend:
     name = "stub"
     device = "none"
 
-    def __init__(self, gate: threading.Event | None = None):
+    def __init__(self, gate: threading.Event | None = None, probs: np.ndarray = PROBS):
         self.gate = gate
+        self.probs = probs
         self.seen: list[tuple[str, tuple[int, int]]] = []
 
     def predict(self, image: Image.Image) -> np.ndarray:
         self.seen.append((image.mode, image.size))
         if self.gate is not None and image.size != (64, 64):  # let the warmup through
             self.gate.wait(5)
-        return PROBS
+        return self.probs
 
 
 @pytest.fixture
@@ -127,3 +128,32 @@ def test_security_headers_and_info(tags):
     assert r.json()["max_upload_bytes"] == web.MAX_UPLOAD
     assert "frame-ancestors 'none'" in r.headers["content-security-policy"]
     assert r.headers["x-content-type-options"] == "nosniff"
+
+
+def test_haruka_categories_need_not_be_contiguous():
+    """Haruka lists one category per tag, interleaved, identity categories include artists, and only the two best
+    of its overlapping era tags are kept."""
+    config = {
+        "model": {"name": "Haruka Tagger"},
+        "tags": [
+            "1girl",
+            "rating_g",
+            "kafka",
+            "mika_pikazo",
+            "rating_s",
+            "ask_(askzy)",
+            "era_2023_2025",
+            "era_2022_2024",
+            "era_2024_2026",
+        ],
+        "categories": ["general", "rating", "character", "artist", "rating", "artist", "year", "year", "year"],
+        "thresholds": dict.fromkeys(("general", "rating", "character", "artist", "year"), 0.5),
+    }
+    probs = np.array([0.9, 0.2, 0.8, 0.7, 0.6, 0.3, 0.55, 0.62, 0.51], dtype=np.float32)
+    with TestClient(web.create_app(lambda: StubBackend(probs=probs), TagIndex(config))) as client:
+        assert client.get("/api/info").json()["model"] == "Haruka Tagger"
+        body = client.post("/api/tag", content=png()).json()
+    assert body["rating"] == {"tag": "rating_s", "score": 0.6}
+    assert body["tags"]["artist"] == [{"tag": "mika_pikazo", "score": 0.7}]
+    assert body["candidates"]["artist"] == [{"tag": "ask_(askzy)", "score": 0.3}]
+    assert body["tags"]["year"] == [{"tag": "era_2022_2024", "score": 0.62}, {"tag": "era_2023_2025", "score": 0.55}]

@@ -21,7 +21,6 @@ from .backends import Backend
 from .image import MAX_PIXELS, ImageError, decode
 from .tagging import TagIndex
 
-MODEL_NAME = "PixAI Tagger v1.0"
 MAX_UPLOAD = 32 << 20
 MAX_QUEUE = 16  # requests waiting for the model before new ones get 503
 FORMATS = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "image/bmp", "image/tiff"]
@@ -29,7 +28,9 @@ WEBUI = Path(__file__).parent / "webui"
 IMAGE_ERROR_STATUS = {"too_many_pixels": 413, "unsupported_format": 415, "unreadable_image": 422}
 SECURITY_HEADERS = {
     "Content-Security-Policy": (
-        "default-src 'self'; img-src 'self' blob: data:; style-src 'self'; script-src 'self'; connect-src 'self'; "
+        "default-src 'self'; img-src 'self' blob: data:; style-src 'self'; script-src 'self'; "
+        # The in-browser engine downloads the model from Hugging Face (redirects to its CDN on *.hf.co).
+        "connect-src 'self' https://huggingface.co https://*.hf.co; "
         "object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
     ),
     "X-Content-Type-Options": "nosniff",
@@ -109,7 +110,7 @@ def create_app(
     async def info(request: Request) -> Response:
         return JSONResponse(
             {
-                "model": MODEL_NAME,
+                "model": tags.name,
                 "backend": backend.name,
                 "device": backend.device,
                 "max_upload_bytes": max_upload,

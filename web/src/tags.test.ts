@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { percent, splitTag, tagsForCopy } from "./tags";
-import type { TagResult } from "./api";
+import type { TagResult } from "./tagger";
 
 describe("splitTag", () => {
   it("splits the series qualifier and title-cases both parts", () => {

@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { fetchInfo, type ServerInfo } from "./api";
 import { QueueList } from "./components/QueueList";
 import { Results } from "./components/Results";
+import { FORMATS, MAX_BYTES } from "./tagger";
 import { formatBytes } from "./tags";
+import { useEngine } from "./useEngine";
 import { useTagging } from "./useTagging";
 
 const FORMAT_NAMES: Record<string, string> = {
@@ -12,6 +13,7 @@ const FORMAT_NAMES: Record<string, string> = {
   "image/webp": "WebP",
   "image/gif": "GIF",
   "image/avif": "AVIF",
+  "image/bmp": "BMP",
 };
 
 function isTyping(target: EventTarget | null): boolean {
@@ -19,30 +21,13 @@ function isTyping(target: EventTarget | null): boolean {
 }
 
 export function App() {
-  const [info, setInfo] = useState<ServerInfo | null>(null);
-  const [offline, setOffline] = useState(false);
+  const engine = useEngine();
+  const { download } = engine;
   const [notice, setNotice] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const input = useRef<HTMLInputElement>(null);
-  const { state, add, remove, clear, retry, select, move } = useTagging(info);
+  const { state, add, remove, clear, retry, select, move } = useTagging(engine.tagger);
   const selected = state.items.find((item) => item.id === state.selectedId) ?? null;
-
-  const loadInfo = useCallback((signal?: AbortSignal) => {
-    fetchInfo(signal)
-      .then((i) => {
-        setInfo(i);
-        setOffline(false);
-      })
-      .catch(() => {
-        if (!signal?.aborted) setOffline(true);
-      });
-  }, []);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    loadInfo(controller.signal);
-    return () => controller.abort();
-  }, [loadInfo]);
 
   useEffect(() => {
     if (!notice) return;
@@ -104,8 +89,7 @@ export function App() {
     };
   }, [add, move, remove, state.selectedId]);
 
-  const formats = info?.formats.map((f) => FORMAT_NAMES[f]).filter(Boolean) ?? [];
-  const accept = info?.formats.join(",") ?? "image/*";
+  const formats = FORMATS.map((f) => FORMAT_NAMES[f]).filter(Boolean);
 
   return (
     <div className="app">
@@ -117,7 +101,7 @@ export function App() {
         <input
           ref={input}
           type="file"
-          accept={accept}
+          accept={FORMATS.join(",")}
           multiple
           hidden
           data-testid="file-input"
@@ -127,12 +111,22 @@ export function App() {
           }}
         />
       </header>
-      {offline && (
+      {engine.error && (
         <div className="banner" role="alert">
-          <span>Can't reach the server</span>
-          <button type="button" className="button small" onClick={() => loadInfo()}>
+          <span>{engine.error}</span>
+          <button type="button" className="button small" onClick={engine.retry}>
             Retry
           </button>
+        </div>
+      )}
+      {download && (
+        <div className="banner neutral" role="status">
+          <span>
+            {download.loaded < download.total
+              ? `Downloading the model, ${formatBytes(download.loaded)} of ${formatBytes(download.total)}. Later visits load it from this browser.`
+              : "Preparing the model"}
+          </span>
+          <progress max={download.total} value={download.loaded} />
         </div>
       )}
       {notice && (
@@ -160,11 +154,9 @@ export function App() {
         <main className="empty">
           <button type="button" className="dropzone" onClick={() => input.current?.click()}>
             <span className="dropzone-title">Drop or paste images</span>
-            {info && (
-              <span className="muted">
-                {formats.join(", ")} up to {formatBytes(info.max_upload_bytes)}
-              </span>
-            )}
+            <span className="muted">
+              {formats.join(", ")} up to {formatBytes(MAX_BYTES)}
+            </span>
           </button>
         </main>
       )}

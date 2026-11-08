@@ -23,6 +23,8 @@ cuda = [
     "safetensors>=0.4",
     "torch>=2.9",
 ]
+# Volta needs a CUDA 12.6 build that still includes sm_70.
+volta = ["safetensors>=0.4", "torch==2.8.0"]
 
 [project.scripts]
 foidfinder = "foidfinder.cli:main"
@@ -41,18 +43,30 @@ parity = [
 ]
 
 [tool.uv]
+conflicts = [
+    [{ extra = "cuda" }, { extra = "volta" }],
+    [{ group = "parity" }, { extra = "volta" }],
+]
 environments = [
     "sys_platform == 'darwin' and platform_machine == 'arm64'",
     "sys_platform == 'linux' and platform_machine == 'x86_64'",
 ]
 
 [tool.uv.sources]
-torch = [{ index = "pytorch-cu130", marker = "sys_platform == 'linux'" }]
+torch = [
+    { index = "pytorch-cu130", extra = "cuda", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-cu126", extra = "volta", marker = "sys_platform == 'linux'" },
+]
 torchvision = [{ index = "pytorch-cu130", marker = "sys_platform == 'linux'" }]
 
 [[tool.uv.index]]
 name = "pytorch-cu130"
 url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
 explicit = true
 
 [build-system]

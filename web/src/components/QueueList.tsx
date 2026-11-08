@@ -5,12 +5,12 @@ function summary(item: Item): string {
   switch (item.status) {
     case "queued":
       return "Waiting";
-    case "uploading":
+    case "running":
       return "Identifying";
     case "error":
       return item.error ?? "Failed";
     case "done": {
-      const top = item.result?.tags.character[0];
+      const top = item.result?.tags.character?.[0];
       return top ? splitTag(top.tag).name : "No character";
     }
   }

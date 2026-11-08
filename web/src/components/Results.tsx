@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { Tag } from "../api";
+import type { Tag } from "../tagger";
 import type { Item } from "../queue";
 import { danbooruUrl, displayTag, formatDuration, percent, ratingLabel, splitTag, tagsForCopy } from "../tags";
 import { copyText } from "../clipboard";
@@ -73,6 +73,8 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+const OWN_SECTION = new Set(["character", "copyright", "artist", "general"]);
+
 export function Results({ item, onRetry }: { item: Item; onRetry: (id: string) => void }) {
   if (item.status === "error") {
     return (
@@ -95,18 +97,19 @@ export function Results({ item, onRetry }: { item: Item; onRetry: (id: string) =
     );
   }
   const r = item.result;
-  const extra = [...r.tags.style, ...r.tags.meta];
+  const extra = Object.entries(r.tags).flatMap(([c, t]) => (OWN_SECTION.has(c) ? [] : t));
   const rating = ratingLabel(r.rating);
   return (
     <>
-      <Matches title="Character" tags={r.tags.character} candidates={r.candidates.character} />
-      <Matches title="Series" tags={r.tags.copyright} candidates={r.candidates.copyright} />
+      <Matches title="Character" tags={r.tags.character ?? []} candidates={r.candidates.character ?? []} />
+      <Matches title="Series" tags={r.tags.copyright ?? []} candidates={r.candidates.copyright ?? []} />
+      {r.tags.artist && <Matches title="Artist" tags={r.tags.artist} candidates={r.candidates.artist ?? []} />}
       <section className="block" aria-label="Tags">
         <div className="block-head">
           <h2>Tags</h2>
           <CopyButton text={tagsForCopy(r)} />
         </div>
-        <Chips tags={r.tags.general} />
+        <Chips tags={r.tags.general ?? []} />
         {extra.length > 0 && <Chips tags={extra} />}
       </section>
       <p className="facts">

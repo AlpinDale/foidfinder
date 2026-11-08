@@ -1,29 +1,29 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
 
-import { ApiError, tagImage, type ServerInfo } from "./api";
 import { initialQueue, queueReducer, type Item } from "./queue";
+import { FORMATS, MAX_BYTES, TaggerError, type Tagger } from "./tagger";
 import { formatBytes } from "./tags";
 
-const MAX_IN_FLIGHT = 2; // overlaps the next upload with inference
-const MAX_BUSY_RETRIES = 5;
+const MAX_IN_FLIGHT = 2; // the engine decodes the next image while the GPU works on the current one
 
 let nextId = 0;
 
-function validate(file: File, info: ServerInfo | null): string | null {
-  if (!info) return null; // the server validates too
-  if (file.type && !info.formats.includes(file.type)) return "Unsupported file type";
-  if (file.size > info.max_upload_bytes) return `Larger than ${formatBytes(info.max_upload_bytes)}`;
+function validate(file: File): string | null {
+  if (file.type && !FORMATS.includes(file.type)) return "Unsupported file type";
+  if (file.size > MAX_BYTES) return `Larger than ${formatBytes(MAX_BYTES)}`;
   if (file.size === 0) return "Empty file";
   return null;
 }
 
-export function useTagging(info: ServerInfo | null) {
+/** The image queue; items wait while `tagger` is null (the model is still loading). */
+export function useTagging(tagger: Tagger | null) {
   const [state, dispatch] = useReducer(queueReducer, initialQueue);
   const controllers = useRef(new Map<string, AbortController>());
   const urls = useRef(new Map<string, string>());
 
   useEffect(() => {
-    let room = MAX_IN_FLIGHT - state.items.filter((item) => item.status === "uploading").length;
+    if (!tagger) return;
+    let room = MAX_IN_FLIGHT - state.items.filter((item) => item.status === "running").length;
     for (const item of state.items) {
       if (room <= 0) break;
       if (item.status !== "queued" || controllers.current.has(item.id)) continue;
@@ -31,23 +31,19 @@ export function useTagging(info: ServerInfo | null) {
       const controller = new AbortController();
       controllers.current.set(item.id, controller);
       dispatch({ type: "start", id: item.id });
-      tagImage(item.file, controller.signal)
+      tagger
+        .tag(item.file, controller.signal)
         .then((result) => dispatch({ type: "succeed", id: item.id, result }))
         .catch((err: unknown) => {
           if (controller.signal.aborted) return;
-          if (err instanceof ApiError && err.code === "busy" && item.busyRetries < MAX_BUSY_RETRIES) {
-            const delay = (err.retryAfter ?? 2) * 1000 * (item.busyRetries + 1);
-            setTimeout(() => dispatch({ type: "requeue", id: item.id, busy: true }), delay);
-            return;
-          }
           const message = err instanceof Error ? err.message : "Failed";
-          dispatch({ type: "fail", id: item.id, error: message, retryable: err instanceof ApiError && err.retryable });
+          dispatch({ type: "fail", id: item.id, error: message, retryable: err instanceof TaggerError && err.retryable });
         })
         .finally(() => {
           if (controllers.current.get(item.id) === controller) controllers.current.delete(item.id);
         });
     }
-  }, [state.items]);
+  }, [state.items, tagger]);
 
   useEffect(() => {
     const ctrl = controllers.current;
@@ -66,7 +62,7 @@ export function useTagging(info: ServerInfo | null) {
         const id = `img-${++nextId}`;
         const url = URL.createObjectURL(file);
         urls.current.set(id, url);
-        const error = validate(file, info);
+        const error = validate(file);
         items.push({
           id,
           file,
@@ -75,13 +71,12 @@ export function useTagging(info: ServerInfo | null) {
           status: error ? "error" : "queued",
           error: error ?? undefined,
           retryable: false,
-          busyRetries: 0,
         });
       }
       dispatch({ type: "add", items });
       return items.length;
     },
-    [info],
+    [],
   );
 
   const release = (id: string) => {
@@ -102,7 +97,7 @@ export function useTagging(info: ServerInfo | null) {
     dispatch({ type: "clear" });
   }, []);
 
-  const retry = useCallback((id: string) => dispatch({ type: "requeue", id, busy: false }), []);
+  const retry = useCallback((id: string) => dispatch({ type: "requeue", id }), []);
   const select = useCallback((id: string) => dispatch({ type: "select", id }), []);
   const move = useCallback((delta: 1 | -1) => dispatch({ type: "move", delta }), []);
 

@@ -2,16 +2,17 @@ services:
   foidfinder:
     build:
       context: .
+      dockerfile: ${FOIDFINDER_DOCKERFILE:-Dockerfile}
       args:
         CUDA_ARCHS: "8.9" # RTX 40xx; add e.g. "8.6" for RTX 30xx, "9.0" for H100
-    image: foidfinder:latest
+    image: ${FOIDFINDER_IMAGE:-foidfinder:latest}
     init: true
     restart: unless-stopped
     stop_grace_period: 40s
     ports:
-      - "127.0.0.1:8000:8000" # expose via a reverse proxy or deploy/tunnel.compose.yaml
+      - "127.0.0.1:8000:8000" # expose via a reverse proxy
     environment:
-      FOIDFINDER_MODEL_REPO: alpindale/PixAI-v1.0-INT8 # or pixai-labs/pixai-tagger-v1.0 (2 GB, quantized at each start)
+      FOIDFINDER_MODEL_REPO: ${FOIDFINDER_MODEL_REPO:-alpindale/PixAI-v1.0-INT8}
       FOIDFINDER_MAX_QUEUE: "16"
       FOIDFINDER_FORWARDED_ALLOW_IPS: "127.0.0.1" # your reverse proxy's address
     volumes:

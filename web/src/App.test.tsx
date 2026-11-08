@@ -1,68 +1,65 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 
 import { App } from "./App";
+import { TaggerError, type TagResult } from "./tagger";
 
-const INFO = {
-  model: "PixAI Tagger v1.0",
-  backend: "mlx",
-  device: "test",
-  max_upload_bytes: 1024,
-  max_pixels: 64_000_000,
-  formats: ["image/jpeg", "image/png"],
-};
+// The WebGPU engine, replaced by one whose loading and answers each test controls.
+const engine = vi.hoisted(() => ({
+  gpu: true,
+  ready: Promise.resolve(),
+  onProgress: null as ((loaded: number, total: number) => void) | null,
+  answers: [] as (() => Promise<TagResult>)[],
+  calls: 0,
+}));
 
-const RESULT = {
+vi.mock("./engine/client", () => ({
+  webgpuAvailable: () => engine.gpu,
+  LocalTagger: class {
+    ready: Promise<void>;
+    constructor(onProgress: (loaded: number, total: number) => void) {
+      engine.onProgress = onProgress;
+      this.ready = engine.ready;
+    }
+    tag() {
+      engine.calls += 1;
+      const next = engine.answers.shift();
+      if (!next) throw new Error("unexpected tag call");
+      return next();
+    }
+    terminate() {}
+  },
+}));
+
+const RESULT: TagResult = {
   rating: { tag: "rating:g", score: 0.9 },
   tags: {
     character: [{ tag: "kafka_(honkai:_star_rail)", score: 0.97 }],
     copyright: [{ tag: "honkai:_star_rail", score: 0.99 }],
     general: [{ tag: "1girl", score: 0.99 }],
-    style: [],
-    meta: [],
   },
   candidates: { character: [{ tag: "himeko_(honkai:_star_rail)", score: 0.12 }], copyright: [] },
   image: { width: 800, height: 1200 },
   timings_ms: { decode: 3, inference: 20, total: 25 },
 };
 
-const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
-  new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...headers } });
-
-let tagResponses: (() => Response | Promise<Response>)[];
-let tagCalls: number;
-
 beforeEach(() => {
-  tagResponses = [];
-  tagCalls = 0;
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (url: string) => {
-      if (url === "/api/info") return json(INFO);
-      tagCalls += 1;
-      const next = tagResponses.shift();
-      if (!next) throw new Error("unexpected /api/tag call");
-      return next();
-    }),
-  );
-});
-
-afterEach(() => {
-  vi.unstubAllGlobals();
-  vi.useRealTimers();
+  engine.gpu = true;
+  engine.ready = Promise.resolve();
+  engine.answers = [];
+  engine.calls = 0;
 });
 
 const png = (name = "a.png", size = 10) => new File([new Uint8Array(size)], name, { type: "image/png" });
 
 async function upload(...files: File[]) {
   render(<App />);
-  await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/info", expect.anything()));
   await userEvent.upload(screen.getByTestId("file-input"), files);
 }
 
 it("shows the identified character, series and closest guess", async () => {
-  tagResponses.push(() => json(RESULT));
+  engine.answers.push(async () => RESULT);
   await upload(png());
   expect(await screen.findByRole("link", { name: "Kafka" })).toHaveAttribute(
     "href",
@@ -73,32 +70,71 @@ it("shows the identified character, series and closest guess", async () => {
   expect(screen.getByText("Rated General")).toBeInTheDocument();
 });
 
-it("rejects oversized and unsupported files without uploading them", async () => {
-  await upload(png("big.png", 2048), new File(["x"], "a.png", { type: "image/heic" }));
-  expect(await screen.findAllByText("Larger than 1 KB")).not.toHaveLength(0);
-  expect(tagCalls).toBe(0);
+it("shows Haruka's artist, year and rating", async () => {
+  engine.answers.push(async () => ({
+    ...RESULT,
+    rating: { tag: "rating_s", score: 0.8 },
+    tags: {
+      character: [{ tag: "kafka_(honkai:_star_rail)", score: 0.97 }],
+      copyright: [],
+      artist: [{ tag: "mika_pikazo", score: 0.81 }],
+      general: [{ tag: "1girl", score: 0.99 }],
+      year: [{ tag: "era_2023_2025", score: 0.66 }],
+    },
+    candidates: { character: [], copyright: [], artist: [{ tag: "ask_(askzy)", score: 0.2 }] },
+  }));
+  await upload(png());
+  expect(await screen.findByRole("link", { name: "Mika Pikazo" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Ask" })).toBeInTheDocument();
+  expect(screen.getByText("era 2023 2025")).toBeInTheDocument();
+  expect(screen.getByText("Rated Sensitive")).toBeInTheDocument();
 });
 
-it("offers a retry after a network failure and recovers", async () => {
-  tagResponses.push(() => Promise.reject(new TypeError("Failed to fetch")), () => json(RESULT));
+it("rejects oversized and unsupported files without running the model", async () => {
+  const big = png("big.png");
+  Object.defineProperty(big, "size", { value: 33 << 20 });
+  await upload(big, new File(["x"], "a.png", { type: "image/heic" }));
+  expect(await screen.findAllByText("Larger than 32 MB")).not.toHaveLength(0);
+  expect(engine.calls).toBe(0);
+});
+
+it("offers a retry after an inference failure and recovers", async () => {
+  engine.answers.push(
+    async () => {
+      throw new TaggerError("GPU error", "inference_failed");
+    },
+    async () => RESULT,
+  );
   await upload(png());
   const retry = await screen.findByRole("button", { name: "Retry" });
-  expect(screen.getByRole("alert")).toHaveTextContent("Can't reach the server");
+  expect(screen.getByRole("alert")).toHaveTextContent("GPU error");
   await userEvent.click(retry);
   expect(await screen.findByRole("link", { name: "Kafka" })).toBeInTheDocument();
 });
 
-it("shows server rejections without a retry button", async () => {
-  tagResponses.push(() => json({ error: { code: "unsupported_format", message: "Unsupported image format" } }, 415));
+it("shows unreadable images without a retry button", async () => {
+  engine.answers.push(async () => {
+    throw new TaggerError("Unsupported or damaged image", "unreadable_image");
+  });
   await upload(png());
-  expect(await screen.findByRole("alert")).toHaveTextContent("Unsupported image format");
+  expect(await screen.findByRole("alert")).toHaveTextContent("Unsupported or damaged image");
   expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
 });
 
-it("waits and retries by itself while the server is busy", async () => {
-  tagResponses.push(() => json({ error: { code: "busy", message: "Server busy" } }, 503, { "Retry-After": "0.01" }));
-  tagResponses.push(() => json(RESULT));
+it("shows the download and runs queued images once the model is loaded", async () => {
+  const loaded = Promise.withResolvers<undefined>();
+  engine.ready = loaded.promise;
+  engine.answers.push(async () => RESULT);
   await upload(png());
+  act(() => engine.onProgress?.(50 << 20, 178 << 20));
+  expect(screen.getByText(/Downloading the model, 50 MB of 178 MB/)).toBeInTheDocument();
+  expect(engine.calls).toBe(0);
+  await act(async () => loaded.resolve(undefined));
   expect(await screen.findByRole("link", { name: "Kafka" })).toBeInTheDocument();
-  expect(tagCalls).toBe(2);
+});
+
+it("says why when the browser cannot run the model", async () => {
+  engine.gpu = false;
+  render(<App />);
+  expect(await screen.findByRole("alert")).toHaveTextContent("This browser has no WebGPU");
 });

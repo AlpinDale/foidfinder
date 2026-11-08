@@ -1,4 +1,4 @@
-import type { Tag, TagResult } from "./api";
+import type { Tag, TagResult } from "./tagger";
 
 /** "kafka_(honkai:_star_rail)" -> { name: "Kafka", qualifier: "Honkai: Star Rail" } */
 export function splitTag(tag: string): { name: string; qualifier: string } {
@@ -21,6 +21,10 @@ export const RATINGS: Record<string, string> = {
   "rating:s": "Sensitive",
   "rating:q": "Questionable",
   "rating:e": "Explicit",
+  rating_g: "General",
+  rating_s: "Sensitive",
+  rating_q: "Questionable",
+  rating_e: "Explicit",
 };
 
 export function ratingLabel(rating: Tag | null): string | null {
@@ -37,9 +41,12 @@ export function danbooruUrl(tag: string): string {
   return `https://danbooru.donmai.us/posts?tags=${encodeURIComponent(tag)}`;
 }
 
+/** Accepted character, series, artist and general tags, in that order, as a comma-separated list. */
 export function tagsForCopy(result: TagResult): string {
-  const { character, copyright, general } = result.tags;
-  return [...character, ...copyright, ...general].map((t) => displayTag(t.tag)).join(", ");
+  return ["character", "copyright", "artist", "general"]
+    .flatMap((c) => result.tags[c] ?? [])
+    .map((t) => displayTag(t.tag))
+    .join(", ");
 }
 
 export function formatBytes(bytes: number): string {
