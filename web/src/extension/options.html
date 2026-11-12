@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>foidfinder settings</title>
+    <link rel="stylesheet" href="./options.css" />
+  </head>
+  <body>
+    <main>
+      <h1>foidfinder</h1>
+      <h2>Full-quality downloads</h2>
+      <p>
+        By default foidfinder only reaches the tab you use it in. Images hosted on another site, or protected against
+        hotlinking (pixiv, for example), are then cropped from a screenshot of the page, at the size they are shown,
+        which can lower accuracy.
+      </p>
+      <p>
+        Allowing access to all sites lets foidfinder download the original image from wherever it is hosted. It only
+        does so for the image you right-click, and still does nothing on a page until you use its menu item. Images
+        are identified on your computer and never uploaded.
+      </p>
+      <p class="status" id="status"></p>
+      <button type="button" id="toggle"></button>
+    </main>
+    <script type="module" src="./options.ts"></script>
+  </body>
+</html>

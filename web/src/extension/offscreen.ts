@@ -49,7 +49,8 @@ async function load(image: ImageSource): Promise<Blob> {
   }
   let res: Response;
   try {
-    res = await fetch(image.url, { credentials: "include" });
+    // No cookies: cross-origin reads allowed by CORS ("*") must not carry credentials.
+    res = await fetch(image.url, { credentials: "omit" });
   } catch {
     throw new FetchFailed("The image could not be downloaded");
   }

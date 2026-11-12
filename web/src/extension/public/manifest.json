@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "foidfinder",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Right-click an anime image to see its character, series and artist. The model runs on your GPU.",
   "minimum_chrome_version": "121",
   "icons": {
@@ -14,6 +14,19 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "permissions": ["contextMenus", "scripting", "offscreen", "declarativeNetRequestWithHostAccess", "unlimitedStorage"],
-  "host_permissions": ["<all_urls>"]
+  "permissions": [
+    "activeTab",
+    "contextMenus",
+    "scripting",
+    "offscreen",
+    "declarativeNetRequestWithHostAccess",
+    "unlimitedStorage"
+  ],
+  "optional_host_permissions": [
+    "<all_urls>"
+  ],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  }
 }

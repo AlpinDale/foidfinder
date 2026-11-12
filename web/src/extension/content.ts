@@ -3,7 +3,7 @@
 
 import { MAX_BYTES } from "../tagger";
 import { CardStack } from "./card";
-import type { LocateReply, ReadReply, ToContent } from "./messages";
+import type { LocateReply, ReadReply, ToBackground, ToContent } from "./messages";
 
 declare global {
   interface Window {
@@ -60,7 +60,10 @@ async function locate(url: string, cards: CardStack): Promise<LocateReply> {
 
 if (!window.__foidfinder) {
   window.__foidfinder = true;
-  const cards = new CardStack();
+  const cards = new CardStack(() => {
+    const msg: ToBackground = { target: "background", type: "open-options" };
+    void chrome.runtime.sendMessage(msg);
+  });
   chrome.runtime.onMessage.addListener((msg: ToContent, _sender, sendResponse) => {
     switch (msg.type) {
       case "ff:card":

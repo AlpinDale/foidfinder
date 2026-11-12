@@ -43,6 +43,9 @@ const CSS = `
 .bar { height: 4px; border-radius: 2px; background: var(--track); margin-top: 8px; overflow: hidden; }
 .bar > span { display: block; height: 100%; background: var(--accent); }
 .foot { margin-top: 8px; font-size: 11px; color: var(--muted); }
+.upgrade { all: unset; cursor: pointer; display: block; margin-top: 8px; font-size: 12px; color: var(--accent); }
+.upgrade:hover { text-decoration: underline; }
+.upgrade:focus-visible { outline: 2px solid var(--accent); }
 `;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = "", ...children: (Node | string)[]): HTMLElementTagNameMap[K] {
@@ -72,8 +75,15 @@ function row(label: string, accepted: Tag[], candidates: Tag[], optional: boolea
   return r;
 }
 
-/** The body of a card for one state. */
-export function cardBody(card: CardState): HTMLElement[] {
+function upgradeButton(onUpgrade: () => void): HTMLElement {
+  const b = el("button", "upgrade", "Allow full-quality downloads from all sites");
+  b.type = "button";
+  b.addEventListener("click", onUpgrade);
+  return b;
+}
+
+/** The body of a card for one state; `onUpgrade` opens the setting that allows downloads from all sites. */
+export function cardBody(card: CardState, onUpgrade: () => void = () => {}): HTMLElement[] {
   switch (card.state) {
     case "loading":
       return [el("p", "status", "Identifying…")];
@@ -88,7 +98,7 @@ export function cardBody(card: CardState): HTMLElement[] {
       ];
     }
     case "error":
-      return [el("p", "error", `Couldn't identify this image. ${card.message}`)];
+      return [el("p", "error", `Couldn't identify this image. ${card.message}`), ...(card.upgrade ? [upgradeButton(onUpgrade)] : [])];
     case "result": {
       const { tags, candidates, timings_ms } = card.result;
       const rows = [
@@ -97,7 +107,7 @@ export function cardBody(card: CardState): HTMLElement[] {
         row("Artist", tags.artist ?? [], candidates.artist ?? [], true),
       ].filter((r): r is HTMLElement => r !== null);
       const foot = `On your GPU in ${formatDuration(timings_ms.total)}${card.screenshot ? ", from a screenshot of the page" : ""}`;
-      return [...rows, el("div", "foot", foot)];
+      return [...rows, el("div", "foot", foot), ...(card.upgrade ? [upgradeButton(onUpgrade)] : [])];
     }
   }
 }
@@ -107,6 +117,8 @@ export class CardStack {
   private host: HTMLElement | null = null;
   private stack: HTMLElement | null = null;
   private cards = new Map<number, { card: HTMLElement; body: HTMLElement }>();
+
+  constructor(private onUpgrade: () => void) {}
 
   private mount(): HTMLElement {
     if (this.stack) return this.stack;
@@ -157,7 +169,7 @@ export class CardStack {
         this.close(oldest);
       }
     }
-    entry.body.replaceChildren(...cardBody(state));
+    entry.body.replaceChildren(...cardBody(state, this.onUpgrade));
   }
 
   /** Hidden while the page is screenshotted, so the cards do not cover the image. */

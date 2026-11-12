@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) =>
           emptyOutDir: true,
           modulePreload: { polyfill: false }, // no inline script (extension CSP)
           rollupOptions: {
-            input: { background: `${root}/background.ts`, offscreen: `${root}/offscreen.html` },
+            input: { background: `${root}/background.ts`, offscreen: `${root}/offscreen.html`, options: `${root}/options.html` },
             output: { entryFileNames: "[name].js", chunkFileNames: "chunks/[name]-[hash].js" },
           },
         },

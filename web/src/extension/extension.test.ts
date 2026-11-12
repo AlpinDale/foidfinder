@@ -21,7 +21,7 @@ const text = (nodes: HTMLElement[]) => nodes.map((n) => n.textContent).join(" | 
 
 describe("cardBody", () => {
   it("lists the character and series with scores and Danbooru links", () => {
-    const nodes = cardBody({ state: "result", result: RESULT, screenshot: false });
+    const nodes = cardBody({ state: "result", result: RESULT, screenshot: false, upgrade: false });
     const link = nodes[0]?.querySelector("a");
     expect(link?.textContent).toBe("Aizawa Ema");
     expect(link?.href).toBe("https://danbooru.donmai.us/posts?tags=aizawa_ema");
@@ -32,14 +32,14 @@ describe("cardBody", () => {
   });
 
   it("marks below-threshold guesses as possible", () => {
-    const nodes = cardBody({ state: "result", result: RESULT, screenshot: false });
+    const nodes = cardBody({ state: "result", result: RESULT, screenshot: false, upgrade: false });
     expect(text(nodes)).toContain("Artist, possibly");
     expect(text(nodes)).toContain("Yuzuriha");
   });
 
   it("says when no character matched and omits an empty artist row", () => {
     const result = { ...RESULT, tags: { ...RESULT.tags, character: [] }, candidates: { character: [], copyright: [], artist: [] } };
-    const t = text(cardBody({ state: "result", result, screenshot: true }));
+    const t = text(cardBody({ state: "result", result, screenshot: true, upgrade: false }));
     expect(t).toContain("Character");
     expect(t).toContain("No match");
     expect(t).not.toContain("Artist");
@@ -48,9 +48,20 @@ describe("cardBody", () => {
 
   it("treats tag names as text, not markup", () => {
     const result = { ...RESULT, tags: { ...RESULT.tags, character: [{ tag: "<img_src=x_onerror=alert(1)>", score: 0.9 }] } };
-    const nodes = cardBody({ state: "result", result, screenshot: false });
+    const nodes = cardBody({ state: "result", result, screenshot: false, upgrade: false });
     expect(nodes[0]?.querySelector("img")).toBeNull();
     expect(nodes[0]?.querySelector("a")?.textContent).toBe("<img Src=x Onerror=alert(1)>");
+  });
+
+  it("offers full-quality downloads only when they would help", () => {
+    let opened = 0;
+    const onUpgrade = () => (opened += 1);
+    expect(text(cardBody({ state: "result", result: RESULT, screenshot: false, upgrade: false }, onUpgrade))).not.toContain("Allow");
+    const nodes = cardBody({ state: "error", message: "The image could not be downloaded", upgrade: true }, onUpgrade);
+    const button = nodes.find((n) => n.tagName === "BUTTON");
+    expect(button?.textContent).toBe("Allow full-quality downloads from all sites");
+    button?.click();
+    expect(opened).toBe(1);
   });
 
   it("shows download progress, then loading once the download is complete", () => {
