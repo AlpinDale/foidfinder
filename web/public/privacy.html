@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy · foidfinder</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/privacy.css?v=1" />
+  </head>
+  <body>
+    <main>
+      <p><a href="/">foidfinder</a></p>
+      <h1>Privacy</h1>
+      <p class="muted">Applies to the foidfinder.net website and the foidfinder browser extension. Last updated 13 November 2026.</p>
+
+      <h2>Your images stay on your computer</h2>
+      <p>
+        foidfinder identifies images with a model that runs in your browser, on your own GPU. The images you check are
+        never uploaded to foidfinder or anyone else, and the results are not sent anywhere.
+      </p>
+
+      <h2>What foidfinder collects</h2>
+      <p>Nothing. There are no accounts, no analytics, no tracking and no cookies.</p>
+
+      <h2>Network requests</h2>
+      <ul>
+        <li>
+          <strong>The model.</strong> On first use your browser downloads the model (about 178 MB) from Hugging Face
+          (huggingface.co and its content delivery network). Hugging Face receives the request, including your IP
+          address, as with any download. Its privacy policy is at
+          <a href="https://huggingface.co/privacy">huggingface.co/privacy</a>.
+        </li>
+        <li>
+          <strong>The website.</strong> foidfinder.net is served through Cloudflare, which processes requests to deliver
+          the site. foidfinder keeps no access logs.
+        </li>
+        <li>
+          <strong>Images, in the extension.</strong> When you right-click an image and choose "Identify with
+          foidfinder", the extension downloads that image from the site that hosts it, as your browser did when it
+          showed the image, sending the page's address (origin only) as the referrer. If the image can't be downloaded,
+          the extension takes a screenshot of the visible tab, crops the image out of it, identifies it locally and
+          discards it.
+        </li>
+      </ul>
+
+      <h2>What is stored on your device</h2>
+      <p>
+        The model is kept in your browser's storage so it downloads only once. Clear the site's data for foidfinder.net,
+        or remove the extension, to delete it.
+      </p>
+
+      <h2>Extension permissions</h2>
+      <p>
+        The extension can access all sites so it can download the image you right-click from wherever it is hosted. It
+        does nothing on a page until you choose its menu item there: it injects no scripts in the background and reads
+        no page content other than the image you picked.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Questions or concerns:
+        <a href="https://github.com/AlpinDale/foidfinder/issues">github.com/AlpinDale/foidfinder/issues</a>.
+      </p>
+    </main>
+  </body>
+</html>
