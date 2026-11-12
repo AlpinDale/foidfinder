@@ -9,3 +9,4 @@ foidfinder/webui/
 deploy/tunnel/
 .env
 web/dev-ref/
+web/dist-extension/

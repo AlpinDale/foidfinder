@@ -72,12 +72,18 @@ export class LocalTagger implements Tagger {
     if (this.failure) return Promise.reject(this.failure);
     const id = this.nextId++;
     const { promise, resolve, reject } = Promise.withResolvers<TagResult>();
-    // An aborted request still runs in the worker; its result is dropped.
+    // An aborted request still runs in the worker if it was already sent; its result is dropped.
     signal?.addEventListener("abort", () => {
       if (this.pending.delete(id)) reject(signal.reason);
     });
     this.pending.set(id, { resolve, reject });
-    this.post({ type: "tag", id, file });
+    // The worker takes images only once the model is loaded; until then they wait here, and fail() rejects them.
+    this.ready.then(
+      () => {
+        if (this.pending.has(id)) this.post({ type: "tag", id, file });
+      },
+      () => {},
+    );
     return promise;
   }
 

@@ -53,6 +53,23 @@ describe("LocalTagger", () => {
     expect(worker().terminated).toBe(true);
   });
 
+  it("holds images sent before the model is loaded until it is", async () => {
+    const tagger = new LocalTagger(() => {}, "https://models.test");
+    const file = new Blob(["x"]);
+    const result = tagger.tag(file);
+    await Promise.resolve();
+    expect(worker().posted.map((m) => (m as { type: string }).type)).toEqual(["init"]);
+
+    worker().onmessage?.(new MessageEvent("message", { data: { type: "ready" } }));
+    await tagger.ready;
+    await Promise.resolve();
+    expect(worker().posted.at(-1)).toEqual({ type: "tag", id: 0, file });
+
+    const answer = { rating: null, tags: {}, candidates: {}, image: { width: 1, height: 1 }, timings_ms: { decode: 0, inference: 0, total: 0 } };
+    worker().onmessage?.(new MessageEvent("message", { data: { type: "result", id: 0, result: answer } }));
+    await expect(result).resolves.toEqual(answer);
+  });
+
   it("fails requests in flight when the worker dies after loading", async () => {
     const tagger = new LocalTagger(() => {}, "https://models.test");
     worker().onmessage?.(new MessageEvent("message", { data: { type: "ready" } }));
