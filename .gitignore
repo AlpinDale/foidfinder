@@ -10,3 +10,4 @@ deploy/tunnel/
 .env
 web/dev-ref/
 web/dist-extension/
+web/foidfinder-extension.zip
