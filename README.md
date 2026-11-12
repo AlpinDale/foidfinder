@@ -68,17 +68,21 @@ The first identification downloads the model (178 MB) into the extension's own s
 cache, which takes about 20 s on a fast connection. The model then stays loaded in a hidden offscreen document,
 answering in about 0.2 s, and is released after 5 idle minutes. Loading it again from storage takes about 1 s.
 
-The extension gets the image in the first way that works:
+By default the extension reaches only the tab where its menu item is used (`activeTab`). Its settings page offers
+full-quality downloads, which asks Chrome for access to all sites. The extension gets the image in the first way that
+works:
 
-1. It downloads the image's URL, sending the page's origin as the Referer, as the browser does. Hotlink-protected
-   hosts such as pixiv accept this.
+1. It downloads the image's URL. Without access to all sites this works only when the image host allows
+   cross-origin reads. With it, the request carries the page's origin as the Referer, as the browser's does, which
+   hotlink-protected hosts such as pixiv accept.
 2. The page reads the image itself. This covers `blob:` URLs.
 3. It crops the image out of a screenshot of the visible tab. The card says when this happened, since the screenshot
    holds the image at its displayed size.
 
 | Permission | Used for |
 |---|---|
-| access to all sites | downloading images from any site, and screenshots |
+| `activeTab` | the tab where the menu item is used: showing the card, reading the image, the screenshot |
+| access to all sites, optional | full-quality downloads from any site, when turned on in the settings |
 | `scripting` | showing the card in the tab the menu was used in, only when it is used |
 | `offscreen` | the hidden page that runs the model in a Web Worker |
 | `declarativeNetRequestWithHostAccess` | the Referer of its own image downloads |
