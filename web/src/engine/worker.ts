@@ -31,10 +31,13 @@ class TagError extends Error {
 
 async function init(base: string) {
   try {
-    const { device, features } = await requestDevice();
+    const [{ device, features }, configBuf, weights] = await Promise.all([
+      requestDevice(),
+      fetchCached(`${base}/config.json`),
+      fetchCached(`${base}/model.safetensors`, (loaded, total) => ctx.postMessage({ type: "progress", loaded, total })),
+    ]);
     maxSide = device.limits.maxTextureDimension2D;
-    const config = JSON.parse(new TextDecoder().decode(await fetchCached(`${base}/config.json`))) as ModelConfig;
-    const weights = await fetchCached(`${base}/model.safetensors`, (loaded, total) => ctx.postMessage({ type: "progress", loaded, total }));
+    const config = JSON.parse(new TextDecoder().decode(configBuf)) as ModelConfig;
     model = await Haruka.load(device, features, config, weights);
     index = new TagIndex(config.tags, config.categories, config.thresholds);
     void device.lost.then((i) => {

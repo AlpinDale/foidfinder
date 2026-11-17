@@ -54,15 +54,16 @@ root and serve it over HTTPS (WebGPU and the Cache API need a secure context). `
 
 The extension adds "Identify with foidfinder" to the right-click menu of images. It shows the character, series and
 artist in a card at the bottom-right of the page. It runs the same in-browser engine as the web UI, so images never
-leave the computer. It works in Chrome, Edge and other Chromium browsers (version 121 or later) whose GPU has WebGPU
-with 16-bit shader floats. Firefox lacks the offscreen documents the extension runs the model in.
+leave the computer. It works in Chrome, Edge and other Chromium browsers (version 121 or later), and in Firefox
+(version 128 or later, on platforms/versions with WebGPU and 16-bit shader floats enabled).
 
 ```sh
-cd web && npm run build:extension    # writes web/dist-extension/
+cd web && npm run build:extension          # writes web/dist-extension/ (Chrome)
+cd web && npm run build:extension:firefox  # writes web/dist-extension-firefox/ (Firefox)
 ```
 
-Open `chrome://extensions`, turn on Developer mode, choose Load unpacked and select `web/dist-extension`. To publish
-it, zip the contents of that directory for the Chrome Web Store.
+- **Chrome / Edge**: Open `chrome://extensions`, turn on Developer mode, choose Load unpacked and select `web/dist-extension`. To publish it, zip the contents of that directory for the Chrome Web Store.
+- **Firefox**: Open `about:debugging#/runtime/this-firefox`, choose Load Temporary Add-on… and select `web/dist-extension-firefox/manifest.json` (or zip the contents of `web/dist-extension-firefox` to sign/install as an `.xpi`).
 
 The first identification downloads the model (178 MB) into the extension's own storage, separate from the website's
 cache, which takes about 20 s on a fast connection. The model then stays loaded in a hidden offscreen document,
