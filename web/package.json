@@ -6,6 +6,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "build:extension": "tsc --noEmit && vite build -c vite.extension.config.ts && vite build -c vite.extension.config.ts --mode content",
+    "build:extension:firefox": "tsc --noEmit && vite build -c vite.extension.config.ts --mode firefox && vite build -c vite.extension.config.ts --mode firefox-content",
     "test": "vitest run",
     "lint": "eslint . && tsc --noEmit"
   },

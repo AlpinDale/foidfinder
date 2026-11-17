@@ -209,6 +209,8 @@ export class Haruka {
     let done = 0;
     const planesOf = async (name: string) =>
       Promise.all(Array.from({ length: layers(name).planes }, (_, i) => gunzip(get(`${name}.plane${i}`).bytes)));
+    // Start decompressing the largest matrix (head.weight) early so it overlaps with the rest of build().
+    const headPlanesPromise = planesOf("head.weight");
     const weightT = new Map<string, GPUBuffer>();
     const decodeT = async (name: string) => {
       const [rows, cols] = layers(name).shape;
@@ -219,7 +221,16 @@ export class Haruka {
       weightT.set(name, out);
       onProgress?.(++done, names.length);
     };
-    for (const name of names) if (name !== "head.weight") await decodeT(name);
+    const otherNames = names.filter((n) => n !== "head.weight");
+    let cursor = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(6, otherNames.length) }, async () => {
+        while (cursor < otherNames.length) {
+          const name = otherNames[cursor++];
+          if (name) await decodeT(name);
+        }
+      }),
+    );
     const weight = (name: string) => {
       const w = weightT.get(name);
       if (!w) throw new Error(`missing compressed matrix ${name}`);
@@ -230,7 +241,7 @@ export class Haruka {
     const [hRows, hCols] = layers("head.weight").shape;
     const limit = this.device.limits.maxStorageBufferBindingSize;
     const chunkRows = Math.min(hRows, Math.floor(limit / (hCols * 2) / 128) * 128);
-    const headPlanes = await planesOf("head.weight");
+    const headPlanes = await headPlanesPromise;
     const headStep = f16("head.weight.step");
     const headChunks: { buf: GPUBuffer; row0: number; rows: number }[] = [];
     for (let row0 = 0; row0 < hRows; row0 += chunkRows) {

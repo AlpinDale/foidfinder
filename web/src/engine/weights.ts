@@ -4,13 +4,13 @@ export const MODEL_REPO = "alpindale/haruka-compressed";
 /** Pinned so a cached copy always matches its URL. */
 export const MODEL_REVISION = "c5fcbcb89b69a9a2453bc8825e3d8e0cb45dee4b";
 export const MODEL_BASE = `https://huggingface.co/${MODEL_REPO}/resolve/${MODEL_REVISION}`;
-const CACHE = "foidfinder-models";
+export const MODEL_CACHE = "foidfinder-models";
 
 export type OnProgress = (loaded: number, total: number) => void;
 
 /** The file at `url`, from the Cache API when present, else downloaded (with progress) and cached. */
 export async function fetchCached(url: string, onProgress?: OnProgress): Promise<ArrayBuffer> {
-  const cache = typeof caches === "undefined" ? null : await caches.open(CACHE);
+  const cache = typeof caches === "undefined" ? null : await caches.open(MODEL_CACHE);
   const hit = await cache?.match(url);
   if (hit) {
     const buf = await hit.arrayBuffer();
