@@ -1,4 +1,4 @@
-import { FORMATS, formatBytes, MAX_BYTES } from "@foidfinder/engine";
+import { faqPathForError, FORMATS, formatBytes, MAX_BYTES } from "@foidfinder/engine";
 import { useEffect, useRef, useState } from "react";
 
 import { QueueList } from "./components/QueueList";
@@ -93,7 +93,13 @@ export function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <span className="wordmark">foidfinder</span>
+        <div className="brand">
+          <span className="wordmark">foidfinder</span>
+          <nav className="topnav" aria-label="Site">
+            <a href="/faq">FAQ</a>
+            <a href="/privacy">Privacy</a>
+          </nav>
+        </div>
         <button type="button" className="button" onClick={() => input.current?.click()}>
           Add images
         </button>
@@ -113,6 +119,9 @@ export function App() {
       {engine.error && (
         <div className="banner" role="alert">
           <span>{engine.error}</span>
+          <a className="banner-link" href={faqPathForError(engine.error)} target="_blank" rel="noreferrer">
+            Troubleshooting
+          </a>
           <button type="button" className="button small" onClick={engine.retry}>
             Retry
           </button>

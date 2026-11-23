@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit && vite build && vite build --mode content"
+    "build": "npm run build:chrome && npm run build:firefox",
+    "build:chrome": "tsc --noEmit && vite build && vite build --mode content",
+    "build:firefox": "tsc --noEmit && vite build --mode firefox && vite build --mode firefox-content"
   },
   "dependencies": {
     "@foidfinder/engine": "*"

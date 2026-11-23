@@ -26,7 +26,10 @@ jobs:
       - run: npm test
       - run: npm run build
 
-      - name: Package extension
+      - name: Lint Firefox add-on (AMO)
+        run: npx --yes addons-linter apps/extension/dist/firefox
+
+      - name: Package extensions
         id: package
         run: |
           version=$(node -p 'require("./apps/extension/public/manifest.json").version')
@@ -34,14 +37,32 @@ jobs:
             echo "::error::tag $GITHUB_REF_NAME does not match the manifest version $version"
             exit 1
           fi
-          zip="foidfinder-extension-$version.zip"
-          (cd apps/extension/dist && zip -qr "../../../$zip" .)
-          echo "zip=$zip" >> "$GITHUB_OUTPUT"
+          chrome_zip="foidfinder-extension-$version.zip"
+          firefox_zip="foidfinder-firefox-$version.zip"
+          source_zip="foidfinder-source-$version.zip"
+          (cd apps/extension/dist/chrome && zip -qr "../../../../$chrome_zip" .)
+          (cd apps/extension/dist/firefox && zip -qr "../../../../$firefox_zip" .)
+          git archive --format=zip -o "$source_zip" HEAD
+          echo "chrome_zip=$chrome_zip" >> "$GITHUB_OUTPUT"
+          echo "firefox_zip=$firefox_zip" >> "$GITHUB_OUTPUT"
+          echo "source_zip=$source_zip" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v7
         with:
-          name: ${{ steps.package.outputs.zip }}
-          path: ${{ steps.package.outputs.zip }}
+          name: ${{ steps.package.outputs.chrome_zip }}
+          path: ${{ steps.package.outputs.chrome_zip }}
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.package.outputs.firefox_zip }}
+          path: ${{ steps.package.outputs.firefox_zip }}
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.package.outputs.source_zip }}
+          path: ${{ steps.package.outputs.source_zip }}
           if-no-files-found: error
 
   release:
@@ -61,6 +82,95 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/*.zip \
+          gh release create "$GITHUB_REF_NAME" dist/foidfinder-extension-*.zip dist/foidfinder-firefox-*.zip \
             --title "foidfinder $GITHUB_REF_NAME" \
-            --notes "Browser extension for Chrome, Edge and other Chromium browsers. Install from the Chrome Web Store, or unzip and load it unpacked from chrome://extensions with Developer mode on."
+            --notes "Browser extensions for Chromium browsers and Firefox. Unzip and load unpacked from chrome://extensions (Chrome/Edge) or about:debugging#/runtime/this-firefox (Firefox)."
+
+  publish-chrome:
+    if: >-
+      github.ref_type == 'tag'
+      && vars.CWS_WIF_PROVIDER != ''
+      && vars.CWS_SERVICE_ACCOUNT != ''
+      && vars.CWS_PUBLISHER_ID != ''
+      && vars.CWS_EXTENSION_ID != ''
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: foidfinder-extension-*.zip
+          path: dist
+          merge-multiple: true
+
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.CWS_WIF_PROVIDER }}
+          service_account: ${{ vars.CWS_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore
+          access_token_lifetime: 1800s
+          create_credentials_file: false
+
+      - name: Upload and publish to Chrome Web Store
+        env:
+          CWS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+        run: |
+          node - <<'EOF'
+          const fs = require("node:fs");
+          const path = require("node:path");
+
+          const token = process.env.CWS_TOKEN;
+          const publisherId = process.env.CWS_PUBLISHER_ID;
+          const extensionId = process.env.CWS_EXTENSION_ID;
+          const zipName = fs.readdirSync("dist").find((f) => /^foidfinder-extension-.*\.zip$/.test(f));
+          if (!zipName) throw new Error("Chrome extension zip not found in dist/");
+
+          const itemPath = `publishers/${encodeURIComponent(publisherId)}/items/${encodeURIComponent(extensionId)}`;
+          const headers = { Authorization: `Bearer ${token}` };
+
+          async function api(url, init) {
+            const res = await fetch(url, init);
+            const text = await res.text();
+            let body;
+            try { body = JSON.parse(text); } catch { body = text; }
+            if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}: ${typeof body === "string" ? body : JSON.stringify(body)}`);
+            return body;
+          }
+
+          (async () => {
+            const zipBytes = fs.readFileSync(path.join("dist", zipName));
+            const upload = await api(`https://chromewebstore.googleapis.com/upload/v2/${itemPath}:upload`, {
+              method: "POST",
+              headers: { ...headers, "Content-Type": "application/zip" },
+              body: zipBytes,
+            });
+            console.log("Upload response:", JSON.stringify(upload));
+
+            let state = upload.uploadState;
+            for (let i = 0; state === "IN_PROGRESS" && i < 24; i++) {
+              await new Promise((r) => setTimeout(r, 5000));
+              const status = await api(`https://chromewebstore.googleapis.com/v2/${itemPath}:fetchStatus`, { headers });
+              state = status.lastAsyncUploadState;
+              console.log(`Poll ${i + 1}: lastAsyncUploadState=${state}`);
+            }
+            if (state !== "SUCCEEDED") {
+              throw new Error(`Chrome Web Store upload did not succeed (state=${state})`);
+            }
+
+            const published = await api(`https://chromewebstore.googleapis.com/v2/${itemPath}:publish`, {
+              method: "POST",
+              headers: { ...headers, "Content-Type": "application/json" },
+              body: JSON.stringify({ publishType: "DEFAULT_PUBLISH" }),
+            });
+            console.log("Publish response:", JSON.stringify(published));
+          })().catch((err) => {
+            console.error(err);
+            process.exit(1);
+          });
+          EOF

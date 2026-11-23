@@ -1,4 +1,4 @@
-import { danbooruUrl, displayTag, formatDuration, percent, ratingLabel, splitTag, tagsForCopy, type Tag } from "@foidfinder/engine";
+import { danbooruUrl, displayTag, faqPathForError, formatDuration, percent, ratingLabel, splitTag, tagsForCopy, type Tag } from "@foidfinder/engine";
 import { useState } from "react";
 
 import { copyText } from "../clipboard";
@@ -79,6 +79,9 @@ export function Results({ item, onRetry }: { item: Item; onRetry: (id: string) =
     return (
       <div className="status error" role="alert">
         <span>{item.error}</span>
+        <a className="status-link" href={faqPathForError(item.error ?? "")} target="_blank" rel="noreferrer">
+          FAQ
+        </a>
         {item.retryable && (
           <button type="button" className="button small" onClick={() => onRetry(item.id)}>
             Retry

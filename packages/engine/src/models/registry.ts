@@ -45,17 +45,22 @@ export class ModelRegistry {
     throw new Error(`Unsupported model architecture${typeof arch === "string" ? `: ${arch}` : ""}`);
   }
 
+  resolveBaseUrl(source: ModelSource = {}): string {
+    const target = source.modelId ? this.get(source.modelId) : this.defaultModel();
+    if (!target) throw new Error(`Unknown model architecture: ${source.modelId}`);
+    return (source.baseUrl ?? target.defaultBaseUrl).replace(/\/+$/, "");
+  }
+
   async load(
     device: GPUDevice,
     features: DeviceFeatures,
     source: ModelSource = {},
     onProgress?: OnProgress,
     fetchFile: (url: string, onProgress?: OnProgress) => Promise<ArrayBuffer> = fetchCached,
+    prefetchedConfig?: ArrayBuffer,
   ): Promise<LoadedModel> {
-    const target = source.modelId ? this.get(source.modelId) : this.defaultModel();
-    if (!target) throw new Error(`Unknown model architecture: ${source.modelId}`);
-    const baseUrl = (source.baseUrl ?? target.defaultBaseUrl).replace(/\/+$/, "");
-    const configBytes = await fetchFile(`${baseUrl}/config.json`);
+    const baseUrl = this.resolveBaseUrl(source);
+    const configBytes = prefetchedConfig ?? (await fetchFile(`${baseUrl}/config.json`));
     const config: unknown = JSON.parse(new TextDecoder().decode(configBytes));
     const definition = this.resolveConfig(config, source.modelId);
     return definition.load({ device, features, baseUrl, fetchFile, onProgress }, config as ModelConfigBase);

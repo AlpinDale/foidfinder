@@ -11,7 +11,7 @@ export interface Engine {
   retry: () => void;
 }
 
-const NO_WEBGPU = "This browser has no WebGPU, which foidfinder needs to run the model. Recent Chrome, Edge and Safari have it.";
+const NO_WEBGPU = "This browser has no WebGPU, which foidfinder needs to run the model. Recent Chrome, Edge, Firefox and Safari have it.";
 
 /** Loads the model into this browser's GPU (downloaded once, then cached). */
 export function useEngine(source?: ModelSource): Engine {

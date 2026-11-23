@@ -1,4 +1,5 @@
-export { LocalTagger, webgpuAvailable, type LocalTaggerOptions } from "./client";
+export { isModelCached, LocalTagger, webgpuAvailable, type LocalTaggerOptions } from "./client";
+export { FAQ_URL, faqAnchorForError, faqPathForError, faqUrlForError } from "./faq";
 export {
   HARUKA_ARCHITECTURE,
   HARUKA_DEFAULT_BASE,
@@ -16,4 +17,4 @@ export { danbooruUrl, displayTag, formatBytes, formatDuration, percent, ratingLa
 export { FORMATS, MAX_BYTES, MAX_PIXELS, TaggerError, type Tag, type Tagger, type TagResult } from "./types";
 export { bicubicCoeffs, planResizePad, type Coeffs, type ResamplePass } from "./webgpu/bicubic";
 export { requestDevice, type DeviceContext, type DeviceFeatures } from "./webgpu/device";
-export { fetchCached, parseSafetensors, type OnProgress, type Tensor } from "./webgpu/weights";
+export { fetchCached, isFileCached, MODEL_CACHE, parseSafetensors, type OnProgress, type Tensor } from "./webgpu/weights";

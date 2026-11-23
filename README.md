@@ -29,21 +29,24 @@ npm ci
 npm run build:web
 ```
 
-Serve `apps/web/dist/` over HTTPS (WebGPU and the Cache API require a secure context). `deploy/Caddyfile` serves it with a CSP whose `connect-src` allows model downloads from Hugging Face.
+Serve `apps/web/dist/` over HTTPS (WebGPU and the Cache API require a secure context). `wrangler.jsonc` and `apps/web/public/_headers` configure static hosting, CSP, and caching for Cloudflare Workers Static Assets, and `deploy/Caddyfile` provides the equivalent Caddy config for self-hosting.
 
 ## Browser extension
 
-The extension adds **Identify with foidfinder** to the image context menu in Chromium browsers (Chrome/Edge 121+ with WebGPU `shader-f16`) and renders results in a closed Shadow DOM card on the page.
+The extension adds **Identify with foidfinder** to the image context menu in Chromium browsers (Chrome/Edge 121+) and Firefox (142+, where WebGPU with `shader-f16` is available), rendering results in a closed Shadow DOM card on the page.
 
 ![foidfinder browser extension](docs/extension.png)
 
 ```sh
-npm run build:extension  # writes apps/extension/dist/
+npm run build:extension          # writes apps/extension/dist/chrome/ and apps/extension/dist/firefox/
+npm run build:extension:chrome   # Chrome / Edge only
+npm run build:extension:firefox  # Firefox only
 ```
 
-Open `chrome://extensions`, turn on **Developer mode**, choose **Load unpacked**, and select `apps/extension/dist`.
+- **Chrome / Edge**: Open `chrome://extensions`, turn on **Developer mode**, choose **Load unpacked**, and select `apps/extension/dist/chrome`.
+- **Firefox**: Open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on…**, and select `apps/extension/dist/firefox/manifest.json`.
 
-On first use the model downloads into the extension's Cache API storage (~178 MB), runs in a hidden offscreen document Web Worker, and unloads after 5 idle minutes.
+On first use the model downloads into the extension's Cache API storage (~178 MB). In Chromium it runs in a hidden offscreen document Web Worker and unloads after 5 idle minutes. In Firefox it runs from the MV3 background event page and releases when idle by default; to keep the model warm in GPU memory between identifications, open `about:addons` → **Extensions** → **foidfinder** → **Options** (or **Preferences**) and enable **Keep model loaded**.
 
 By default the extension only accesses the active tab when invoked (`activeTab`). Its options page lets users grant optional `<all_urls>` access for full-quality downloads from hotlink-protected or cross-origin hosts (falling back to in-page reads and visible-tab screenshot crops otherwise).
 
@@ -52,7 +55,8 @@ By default the extension only accesses the active tab when invoked (`activeTab`)
 | `activeTab` | Active tab when the menu item is clicked: displaying the card, reading the image, screenshot fallback |
 | `<all_urls>` (optional) | Full-quality downloads from any host when enabled in settings |
 | `scripting` | Injecting the result card script on demand |
-| `offscreen` | Hidden document hosting the WebGPU Web Worker |
+| `offscreen` (Chrome) | Hidden document hosting the WebGPU Web Worker |
+| `storage` (Firefox) | Saving the optional keep-model-loaded preference locally |
 | `declarativeNetRequestWithHostAccess` | Setting the page origin as `Referer` for extension image downloads |
 | `unlimitedStorage` | Caching the model checkpoint |
 | `contextMenus` | Adding the right-click menu entry |

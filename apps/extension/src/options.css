@@ -20,9 +20,12 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 main { max-width: 620px; margin: 0 auto; padding: 32px 20px; }
 h1 { font-size: 26px; margin: 0 0 20px; }
 h2 { font-size: 18px; margin: 0 0 8px; }
+section { margin-top: 32px; }
 p { margin: 0 0 12px; }
 .status { color: var(--muted); }
 button {
   font: inherit; font-weight: 600; border: 0; border-radius: 8px; padding: 9px 16px; cursor: pointer;
   background: var(--accent); color: var(--on-accent);
 }
+.links { display: flex; gap: 16px; margin-top: 32px; font-size: 14px; }
+.links a { color: var(--accent); }
