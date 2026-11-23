@@ -1,0 +1,49 @@
+# Validation, builds, and releases
+
+## Standard checks
+
+Run commands from the repository root. Run focused test files before expanding
+to the full suite:
+
+```sh
+npx vitest run packages/engine/src/models/registry.test.ts
+npm run lint
+npm test
+npm run build
+```
+
+- `npm run lint` runs ESLint across all workspaces plus `tsc --noEmit` for
+  `packages/engine`, `apps/web`, and `apps/extension`.
+- `npm test` runs Vitest (`vitest.config.ts`, `jsdom` environment) across all
+  workspaces.
+- `npm run build` runs `build:web` (`apps/web/dist/`) and `build:extension`
+  (`apps/extension/dist/`).
+
+## Bundle and runtime verification
+
+- After changes to `packages/engine` exports, `apps/extension`, or Vite
+  configs, inspect the build output sizes and files:
+  - `apps/extension/dist/content.js` must remain a small standalone IIFE
+    (~7 kB) with no shared chunk imports and no duplicate worker asset.
+  - `apps/extension/dist/offscreen.js` must stay lightweight (~3 kB), with
+    Haruka and WGSL code isolated in `dist/assets/worker-*.js`.
+- Vitest runs in `jsdom` with stubbed workers and no GPU or Chrome runtime.
+  Unit tests do not validate WGSL compilation, GPU numerical parity, Cache API
+  downloads, or live MV3 extension flows (context menu, offscreen worker, DNR
+  Referer rules, screenshot cropping). When those paths change, exercise them
+  in a WebGPU-capable Chromium browser instead of stopping at unit tests and
+  listing what was skipped; only report a gap when a suitable browser or GPU is
+  genuinely unavailable.
+- For bug fixes, add a focused regression test covering observable behavior or
+  state transitions rather than asserting on source text or internal wiring.
+
+## CI, releases, and repository hygiene
+
+- `.github/workflows/ci.yml` runs `npm ci`, `npm run lint`, `npm test`,
+  `npm run build`, and packages `apps/extension/dist/`.
+- On `v*` tags, CI verifies that the tag matches `version` in
+  `apps/extension/public/manifest.json` and publishes a GitHub release. Keep
+  manifest and workspace versions aligned when cutting a release.
+- Anchor root-only `.gitignore` rules with a leading `/` (for example
+  `/models/`, `/.venv/`) so nested source directories are never silently
+  excluded from Git.
