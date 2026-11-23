@@ -45,6 +45,11 @@ jobs:
           (cd apps/extension/dist/chrome && zip -qr "../../../../$chrome_zip" .)
           (cd apps/extension/dist/firefox && zip -qr "../../../../$firefox_zip" .)
           git archive --format=zip -o "$source_zip" HEAD
+          tmp_src=$(mktemp -d)
+          mkdir -p "$tmp_src/apps/extension/public"
+          cp apps/extension/dist/chrome/manifest.json "$tmp_src/apps/extension/public/manifest.json"
+          (cd "$tmp_src" && zip -qr "$OLDPWD/$source_zip" apps/extension/public/manifest.json)
+          rm -rf "$tmp_src"
           echo "chrome_zip=$chrome_zip" >> "$GITHUB_OUTPUT"
           echo "firefox_zip=$firefox_zip" >> "$GITHUB_OUTPUT"
           echo "source_zip=$source_zip" >> "$GITHUB_OUTPUT"
