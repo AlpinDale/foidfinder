@@ -3,8 +3,8 @@ dist/
 *.zip
 .DS_Store
 .env
-.venv/
-.pytest_cache/
-.ruff_cache/
-deploy/tunnel/
-models/
+/.venv/
+/.pytest_cache/
+/.ruff_cache/
+/deploy/tunnel/
+/models/
