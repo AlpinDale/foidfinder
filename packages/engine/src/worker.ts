@@ -4,6 +4,7 @@ import { defaultRegistry } from "./models/registry";
 import type { LoadedModel, ModelSource } from "./models/types";
 import { MAX_PIXELS, type TagResult } from "./types";
 import { requestDevice } from "./webgpu/device";
+import { fetchCached } from "./webgpu/weights";
 
 export type WorkerRequest = { type: "init"; source: ModelSource } | { type: "tag"; id: number; file: Blob };
 
@@ -34,10 +35,16 @@ class TagError extends Error {
 
 async function init(source: ModelSource) {
   try {
-    const { device, features } = await requestDevice();
+    const baseUrl = defaultRegistry.resolveBaseUrl(source);
+    const [{ device, features }, configBytes] = await Promise.all([requestDevice(), fetchCached(`${baseUrl}/config.json`)]);
     maxSide = device.limits.maxTextureDimension2D;
-    const loaded = await defaultRegistry.load(device, features, source, (loadedBytes, total) =>
-      ctx.postMessage({ type: "progress", loaded: loadedBytes, total }),
+    const loaded = await defaultRegistry.load(
+      device,
+      features,
+      { ...source, baseUrl },
+      (loadedBytes, total) => ctx.postMessage({ type: "progress", loaded: loadedBytes, total }),
+      fetchCached,
+      configBytes,
     );
     model?.destroy();
     model = loaded;

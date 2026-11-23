@@ -26,7 +26,10 @@ jobs:
       - run: npm test
       - run: npm run build
 
-      - name: Package extension
+      - name: Lint Firefox add-on (AMO)
+        run: npx --yes addons-linter apps/extension/dist/firefox
+
+      - name: Package extensions
         id: package
         run: |
           version=$(node -p 'require("./apps/extension/public/manifest.json").version')
@@ -34,14 +37,32 @@ jobs:
             echo "::error::tag $GITHUB_REF_NAME does not match the manifest version $version"
             exit 1
           fi
-          zip="foidfinder-extension-$version.zip"
-          (cd apps/extension/dist && zip -qr "../../../$zip" .)
-          echo "zip=$zip" >> "$GITHUB_OUTPUT"
+          chrome_zip="foidfinder-extension-$version.zip"
+          firefox_zip="foidfinder-firefox-$version.zip"
+          source_zip="foidfinder-source-$version.zip"
+          (cd apps/extension/dist/chrome && zip -qr "../../../../$chrome_zip" .)
+          (cd apps/extension/dist/firefox && zip -qr "../../../../$firefox_zip" .)
+          git archive --format=zip -o "$source_zip" HEAD
+          echo "chrome_zip=$chrome_zip" >> "$GITHUB_OUTPUT"
+          echo "firefox_zip=$firefox_zip" >> "$GITHUB_OUTPUT"
+          echo "source_zip=$source_zip" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v7
         with:
-          name: ${{ steps.package.outputs.zip }}
-          path: ${{ steps.package.outputs.zip }}
+          name: ${{ steps.package.outputs.chrome_zip }}
+          path: ${{ steps.package.outputs.chrome_zip }}
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.package.outputs.firefox_zip }}
+          path: ${{ steps.package.outputs.firefox_zip }}
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.package.outputs.source_zip }}
+          path: ${{ steps.package.outputs.source_zip }}
           if-no-files-found: error
 
   release:
@@ -61,6 +82,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/*.zip \
+          gh release create "$GITHUB_REF_NAME" dist/foidfinder-extension-*.zip dist/foidfinder-firefox-*.zip \
             --title "foidfinder $GITHUB_REF_NAME" \
-            --notes "Browser extension for Chrome, Edge and other Chromium browsers. Install from the Chrome Web Store, or unzip and load it unpacked from chrome://extensions with Developer mode on."
+            --notes "Browser extensions for Chromium browsers and Firefox. Unzip and load unpacked from chrome://extensions (Chrome/Edge) or about:debugging#/runtime/this-firefox (Firefox)."

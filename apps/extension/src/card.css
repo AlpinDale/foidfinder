@@ -161,7 +161,8 @@
   color: var(--muted);
 }
 
-.upgrade {
+.upgrade,
+.help {
   all: unset;
   cursor: pointer;
   display: block;
@@ -170,10 +171,12 @@
   color: var(--accent);
 }
 
-.upgrade:hover {
+.upgrade:hover,
+.help:hover {
   text-decoration: underline;
 }
 
-.upgrade:focus-visible {
+.upgrade:focus-visible,
+.help:focus-visible {
   outline: 2px solid var(--accent);
 }

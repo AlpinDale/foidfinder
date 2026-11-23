@@ -11,6 +11,8 @@
     "build": "npm run build:web && npm run build:extension",
     "build:web": "npm run build --workspace=@foidfinder/web",
     "build:extension": "npm run build --workspace=@foidfinder/extension",
+    "build:extension:chrome": "npm run build:chrome --workspace=@foidfinder/extension",
+    "build:extension:firefox": "npm run build:firefox --workspace=@foidfinder/extension",
     "typecheck": "tsc -p packages/engine/tsconfig.json && tsc -p apps/web/tsconfig.json && tsc -p apps/extension/tsconfig.json",
     "lint": "eslint . && npm run typecheck",
     "test": "vitest run"

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FAQ · foidfinder</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/privacy.css?v=1" />
+  </head>
+  <body>
+    <main>
+      <nav>
+        <a href="/">foidfinder</a>
+        <a href="/privacy">Privacy</a>
+      </nav>
+      <h1>FAQ &amp; Troubleshooting</h1>
+      <p class="muted">Common questions and error messages for foidfinder.net and the browser extension.</p>
+
+      <h2>Errors</h2>
+
+      <h3 id="no-webgpu">“This browser has no WebGPU, which foidfinder needs to run the model”</h3>
+      <p>
+        foidfinder runs the neural network locally on your GPU using WebGPU. Update to a supported browser:
+      </p>
+      <ul>
+        <li><strong>Chrome / Edge</strong>: version 121 or newer.</li>
+        <li><strong>Firefox</strong>: version 142 or newer (on platforms where WebGPU is enabled).</li>
+        <li><strong>Safari</strong>: recent macOS / iOS versions with WebGPU enabled.</li>
+      </ul>
+      <p>If you are self-hosting the web app, make sure it is served over HTTPS (or <code>localhost</code>); browsers disable WebGPU on plain HTTP.</p>
+
+      <h3 id="no-gpu">“WebGPU is turned on, but the browser offers no GPU to it”</h3>
+      <p>Your browser supports the WebGPU API, but could not obtain a hardware GPU adapter. Common causes:</p>
+      <ul>
+        <li>
+          <strong>Graphics acceleration is turned off.</strong> In Chrome/Edge, open <code>chrome://settings/system</code>, turn on
+          <strong>Use graphics acceleration when available</strong>, and relaunch the browser.
+        </li>
+        <li>
+          <strong>Linux Chrome / Chromium.</strong> WebGPU/Vulkan is often disabled or blocklisted by default on Linux. Check
+          <code>chrome://gpu</code>, update your Mesa/NVIDIA drivers, or enable <code>chrome://flags/#enable-unsafe-webgpu</code>.
+        </li>
+        <li>
+          <strong>Blocklisted GPU, outdated driver, or VM.</strong> Open <code>chrome://gpu</code> (Chrome/Edge) or
+          <code>about:support</code> (Firefox) and check the WebGPU status and detected problems. Updating graphics drivers often fixes
+          this; virtual machines and some Remote Desktop sessions do not expose a WebGPU-capable GPU.
+        </li>
+      </ul>
+
+      <h3 id="no-f16">“This GPU or browser lacks 16-bit floats in WebGPU shaders (shader-f16)”</h3>
+      <p>
+        The model requires the WebGPU <code>shader-f16</code> feature for memory and speed. Very old GPUs (for example pre-Turing
+        NVIDIA cards or older integrated Intel GPUs), outdated drivers, or software renderers (like SwiftShader) do not expose
+        <code>shader-f16</code>. Updating your graphics drivers may enable it on supported hardware; otherwise that GPU cannot run the
+        in-browser model.
+      </p>
+
+      <h3 id="device-lost">“GPU device lost” / “The in-browser engine failed to start” / “The model did not answer”</h3>
+      <p>
+        The browser reset or terminated the GPU worker—usually because of a graphics driver reset, system sleep/wake, low GPU memory,
+        or the browser suspending a background process. Click <strong>Retry</strong> (or right-click the image again in the extension).
+        If it repeats, close GPU-heavy tabs or games and reload the page.
+      </p>
+
+      <h3 id="download-failed">“The model download failed / timed out / stalled / was incomplete”</h3>
+      <p>
+        On first use, foidfinder downloads the 178 MB model checkpoint from Hugging Face (<code>huggingface.co</code> and
+        <code>*.hf.co</code>) and caches it in your browser.
+      </p>
+      <ul>
+        <li>Check that no firewall, VPN, or content blocker is blocking <code>huggingface.co</code> or <code>*.hf.co</code>.</li>
+        <li>Make sure you have at least ~250 MB of free disk space for browser storage.</li>
+        <li>If your connection dropped mid-download, click <strong>Retry</strong> (or try again in the extension).</li>
+      </ul>
+
+      <h3 id="image-fetch">Extension: “The image could not be downloaded / read” or “server refused it / sent a page”</h3>
+      <p>
+        By default the extension only uses <code>activeTab</code> permission, so it cannot directly fetch images hosted on a different
+        domain unless that host allows cross-origin reads, and sites with hotlink protection (such as pixiv) reject requests without
+        the page's referrer.
+      </p>
+      <ul>
+        <li>
+          Click <strong>Allow full-quality downloads from all sites</strong> on the card (or open the extension's settings) to grant
+          optional all-sites access. foidfinder still only runs when you click its menu item and never uploads images.
+        </li>
+        <li>
+          Images inside cross-origin <code>&lt;iframe&gt;</code>s or browser-restricted pages (such as the Chrome Web Store or
+          <code>chrome://</code> / <code>about:</code> pages) cannot be read by extensions; save the image and drop it on
+          <a href="/">foidfinder.net</a> instead.
+        </li>
+      </ul>
+
+      <h3 id="image-limits">“Larger than 32 MB / 64 megapixels / ... pixels” or “Unsupported or damaged image”</h3>
+      <p>
+        foidfinder accepts JPEG, PNG, WebP, GIF, AVIF, and BMP files up to 32 MB, 64 megapixels, and your GPU's maximum 2D texture
+        dimension (usually 8192 or 16384 pixels per side). Convert unsupported formats (such as HEIC, TIFF, or PSD) or downscale
+        very large images before identifying.
+      </p>
+
+      <h2>General</h2>
+
+      <h3 id="privacy">Do my images leave my computer?</h3>
+      <p>
+        No. Everything runs locally in your browser via WebGPU. The only network request the web app makes is the one-time model
+        download from Hugging Face. See the <a href="/privacy">Privacy Policy</a> for details.
+      </p>
+
+      <h3 id="first-run">Why does the first identification take longer?</h3>
+      <p>
+        The first run downloads the 178 MB model once and stores it in your browser's Cache API (separate caches for the website and
+        the extension). Later runs load from local storage in about a second.
+      </p>
+      <p>
+        <strong>Firefox extension note:</strong> Firefox suspends idle MV3 extensions after about 30 seconds, which releases GPU memory
+        and requires recompiling shaders next time. If you identify images frequently, open <code>about:addons</code> →
+        <strong>Extensions</strong> → <strong>foidfinder</strong> → <strong>Options</strong> (or <strong>Preferences</strong>) and
+        enable <strong>Keep model loaded</strong>.
+      </p>
+
+      <h3 id="screenshot">Why did the extension say “from a screenshot of the page”?</h3>
+      <p>
+        When the extension cannot download the original image file (because all-sites access is off or the host blocks direct reads),
+        it falls back to cropping the image from a screenshot of the visible tab. That uses the displayed size on screen, which can
+        reduce accuracy for small thumbnails. Turning on <strong>Allow full-quality downloads from all sites</strong> in the extension
+        settings lets it fetch the original file.
+      </p>
+
+      <h3 id="accuracy">Why wasn't a character, series, or artist recognized?</h3>
+      <p>
+        foidfinder currently uses Haruka Tagger (98,782 Danbooru tags, including 38,447 artists). Characters or artists introduced
+        after the model's training cutoff, heavy crops, strong filters, or low-resolution screenshot fallbacks can score below the
+        display threshold. Check the <strong>Possible</strong> entries for below-threshold guesses.
+      </p>
+
+      <h3 id="clear-cache">How do I delete the cached model?</h3>
+      <p>
+        Clear site data for <code>foidfinder.net</code> in your browser settings to remove the website's copy, or remove the extension
+        to delete the extension's copy.
+      </p>
+
+      <h3 id="contact">Still stuck?</h3>
+      <p>
+        Report bugs or ask questions on
+        <a href="https://github.com/AlpinDale/foidfinder/issues">github.com/AlpinDale/foidfinder/issues</a>. Include your browser
+        version, OS, and the WebGPU section from <code>chrome://gpu</code> (or <code>about:support</code> on Firefox).
+      </p>
+    </main>
+  </body>
+</html>

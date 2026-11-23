@@ -115,13 +115,15 @@ it("offers a retry after an inference failure and recovers", async () => {
   expect(await screen.findByRole("link", { name: "Kafka" })).toBeInTheDocument();
 });
 
-it("shows unreadable images without a retry button", async () => {
+it("shows unreadable images without a retry button and links to the FAQ", async () => {
   engine.answers.push(async () => {
     throw new TaggerError("Unsupported or damaged image", "unreadable_image");
   });
   await upload(png());
-  expect(await screen.findByRole("alert")).toHaveTextContent("Unsupported or damaged image");
+  const alert = await screen.findByRole("alert");
+  expect(alert).toHaveTextContent("Unsupported or damaged image");
   expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+  expect(alert.querySelector("a")).toHaveAttribute("href", "/faq#image-limits");
 });
 
 it("shows the download and runs queued images once the model is loaded", async () => {
@@ -136,8 +138,10 @@ it("shows the download and runs queued images once the model is loaded", async (
   expect(await screen.findByRole("link", { name: "Kafka" })).toBeInTheDocument();
 });
 
-it("says why when the browser cannot run the model", async () => {
+it("says why when the browser cannot run the model and links to the matching FAQ section", async () => {
   engine.gpu = false;
   render(<App />);
-  expect(await screen.findByRole("alert")).toHaveTextContent("This browser has no WebGPU");
+  const alert = await screen.findByRole("alert");
+  expect(alert).toHaveTextContent("This browser has no WebGPU");
+  expect(alert.querySelector("a")).toHaveAttribute("href", "/faq#no-webgpu");
 });

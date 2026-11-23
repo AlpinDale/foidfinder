@@ -1,12 +1,20 @@
 // The in-browser tagger: a Web Worker running a registered WebGPU model.
 
+import { HARUKA_DEFAULT_BASE } from "./models/haruka/config";
 import type { ModelSource } from "./models/types";
 import { TaggerError, type Tagger, type TagResult } from "./types";
-import type { OnProgress } from "./webgpu/weights";
+import { isFileCached, type OnProgress } from "./webgpu/weights";
 import type { WorkerReply, WorkerRequest } from "./worker";
 
 export function webgpuAvailable(): boolean {
   return typeof navigator !== "undefined" && "gpu" in navigator;
+}
+
+/** Returns true when the model checkpoint for `source` is already stored in the Cache API. */
+export function isModelCached(source?: ModelSource): Promise<boolean> {
+  const envBase = import.meta.env?.VITE_MODEL_BASE as string | undefined;
+  const baseUrl = (source?.baseUrl ?? envBase ?? HARUKA_DEFAULT_BASE).replace(/\/+$/, "");
+  return isFileCached(`${baseUrl}/model.safetensors`);
 }
 
 export interface LocalTaggerOptions {

@@ -1,7 +1,11 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import type { TagResult } from "@foidfinder/engine";
 import { describe, expect, it } from "vitest";
 
 import { cardBody } from "./card";
+import { buildFirefoxManifest, FIREFOX_ADDON_ID, FIREFOX_MIN_VERSION } from "./manifest";
 import { refererRule } from "./referer";
 
 const RESULT: TagResult = {
@@ -64,6 +68,14 @@ describe("cardBody", () => {
     expect(opened).toBe(1);
   });
 
+  it("links error cards to the matching troubleshooting section on the FAQ", () => {
+    const nodes = cardBody({ state: "error", message: "WebGPU is turned on, but the browser offers no GPU to it", upgrade: false });
+    const link = nodes.find((n) => n.tagName === "A") as HTMLAnchorElement | undefined;
+    expect(link?.textContent).toBe("Troubleshooting (FAQ)");
+    expect(link?.href).toBe("https://foidfinder.net/faq#no-gpu");
+    expect(link?.target).toBe("_blank");
+  });
+
   it("shows download progress, then loading once the download is complete", () => {
     expect(text(cardBody({ state: "download", loaded: 50 << 20, total: 178 << 20 }))).toBe(
       "Downloading the model, 50 MB of 178 MB. This happens once. | ",
@@ -84,5 +96,23 @@ describe("refererRule", () => {
     expect(refererRule(1, "data:image/png;base64,AAAA", "https://example.com/", "abc")).toBeNull();
     expect(refererRule(1, "https://example.com/a.png", "file:///tmp/page.html", "abc")).toBeNull();
     expect(refererRule(1, "not a url", "https://example.com/", "abc")).toBeNull();
+  });
+});
+
+describe("buildFirefoxManifest", () => {
+  it("converts the Chrome manifest into a valid Firefox MV3 manifest", () => {
+    const chrome = JSON.parse(readFileSync(resolve(import.meta.dirname, "../public/manifest.json"), "utf8")) as Record<string, unknown>;
+    const firefox = buildFirefoxManifest(chrome);
+    expect(firefox.minimum_chrome_version).toBeUndefined();
+    expect(firefox.background).toEqual({ scripts: ["background.js"], type: "module" });
+    expect(firefox.permissions).not.toContain("offscreen");
+    expect(firefox.permissions).toContain("storage");
+    expect(firefox.browser_specific_settings).toEqual({
+      gecko: {
+        id: FIREFOX_ADDON_ID,
+        strict_min_version: FIREFOX_MIN_VERSION,
+        data_collection_permissions: { required: ["none"] },
+      },
+    });
   });
 });

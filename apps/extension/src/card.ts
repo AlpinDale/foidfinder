@@ -1,7 +1,7 @@
 // The result cards the content script shows at the bottom-right of a page, in a closed shadow root so neither the
 // page's styles nor its scripts reach them. Text goes in through textContent only.
 
-import { danbooruUrl, formatBytes, formatDuration, percent, splitTag, type Tag } from "@foidfinder/engine";
+import { danbooruUrl, faqUrlForError, formatBytes, formatDuration, percent, splitTag, type Tag } from "@foidfinder/engine";
 
 import cardCss from "./card.css?inline";
 import type { CardState } from "./messages";
@@ -42,6 +42,14 @@ function upgradeButton(onUpgrade: () => void): HTMLElement {
   return b;
 }
 
+function helpLink(message: string): HTMLElement {
+  const link = el("a", "help", "Troubleshooting (FAQ)");
+  link.href = faqUrlForError(message);
+  link.target = "_blank";
+  link.rel = "noreferrer";
+  return link;
+}
+
 /** The body of a card for one state; `onUpgrade` opens the setting that allows downloads from all sites. */
 export function cardBody(card: CardState, onUpgrade: () => void = () => {}): HTMLElement[] {
   switch (card.state) {
@@ -58,7 +66,11 @@ export function cardBody(card: CardState, onUpgrade: () => void = () => {}): HTM
       ];
     }
     case "error":
-      return [el("p", "error", `Couldn't identify this image. ${card.message}`), ...(card.upgrade ? [upgradeButton(onUpgrade)] : [])];
+      return [
+        el("p", "error", `Couldn't identify this image. ${card.message}`),
+        ...(card.upgrade ? [upgradeButton(onUpgrade)] : []),
+        helpLink(card.message),
+      ];
     case "result": {
       const { tags, candidates, timings_ms } = card.result;
       const rows = [

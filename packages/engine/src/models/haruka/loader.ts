@@ -142,23 +142,34 @@ export async function loadHarukaWeights(
   const planesOf = (name: string) =>
     Promise.all(Array.from({ length: layerSpec(name).planes }, (_, i) => gunzip(get(`${name}.plane${i}`).bytes)));
 
-  // Reconstruct transposed backbone + pool KV weights on the GPU.
+  // Start decompressing the largest matrix (head.weight) early so it overlaps with the backbone layers.
+  const headPlanesPromise = planesOf("head.weight");
+  headPlanesPromise.catch(() => {});
+
+  // Reconstruct transposed backbone + pool KV weights on the GPU using a bounded decompression pool.
   const weights = new Map<string, GPUBuffer>();
-  for (const name of Object.keys(config.quantization.layers)) {
-    if (name === "head.weight") continue;
-    const [rows, cols] = layerSpec(name).shape;
-    const planes = (await planesOf(name)).map((p) => arena.upload(p));
-    const out = arena.buffer(rows * cols * 2);
-    await arena.runOnce(dequantT(rows, cols, planes.length), [...planes, f16(`${name}.step`), out], Math.ceil((rows * cols) / 4 / 256));
-    planes.forEach((p) => p.destroy());
-    weights.set(name, out);
-  }
+  const otherNames = Object.keys(config.quantization.layers).filter((n) => n !== "head.weight");
+  let cursor = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(6, otherNames.length) }, async () => {
+      while (cursor < otherNames.length) {
+        const name = otherNames[cursor++];
+        if (!name) continue;
+        const [rows, cols] = layerSpec(name).shape;
+        const planes = (await planesOf(name)).map((p) => arena.upload(p));
+        const out = arena.buffer(rows * cols * 2);
+        await arena.runOnce(dequantT(rows, cols, planes.length), [...planes, f16(`${name}.step`), out], Math.ceil((rows * cols) / 4 / 256));
+        planes.forEach((p) => p.destroy());
+        weights.set(name, out);
+      }
+    }),
+  );
 
   // Classifier head: row-major, split into chunks that fit maxStorageBufferBindingSize.
   const [hRows, hCols] = layerSpec("head.weight").shape;
   const limit = arena.device.limits.maxStorageBufferBindingSize;
   const chunkRows = Math.min(hRows, Math.floor(limit / (hCols * 2) / 128) * 128);
-  const headPlanes = await planesOf("head.weight");
+  const headPlanes = await headPlanesPromise;
   const headStep = f16("head.weight.step");
   const headChunks: HeadChunk[] = [];
   for (let row0 = 0; row0 < hRows; row0 += chunkRows) {

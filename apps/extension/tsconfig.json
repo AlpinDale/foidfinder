@@ -1,6 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "allowImportingTsExtensions": true,
     "types": ["vite/client", "node", "@webgpu/types", "chrome"]
   },
   "include": ["src", "vite.config.ts"]

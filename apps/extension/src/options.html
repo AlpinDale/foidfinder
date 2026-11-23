@@ -21,6 +21,22 @@
       </p>
       <p class="status" id="status"></p>
       <button type="button" id="toggle"></button>
+
+      <section id="keepalive-section" hidden>
+        <h2>Keep model loaded</h2>
+        <p>
+          Firefox suspends idle extensions after about 30 seconds, which releases the GPU device and requires
+          recompiling shaders on the next identification. Keeping the model loaded avoids that delay, at the cost of
+          keeping the model in GPU memory for the session.
+        </p>
+        <p class="status" id="keepalive-status"></p>
+        <button type="button" id="keepalive-toggle"></button>
+      </section>
+
+      <footer class="links">
+        <a href="https://foidfinder.net/faq" target="_blank" rel="noreferrer">FAQ &amp; Troubleshooting</a>
+        <a href="https://foidfinder.net/privacy" target="_blank" rel="noreferrer">Privacy</a>
+      </footer>
     </main>
     <script type="module" src="./options.ts"></script>
   </body>

@@ -45,7 +45,11 @@ img { display: block; }
   display: flex; align-items: center; justify-content: space-between; flex: none;
   height: 56px; padding: 0 20px; border-bottom: 1px solid var(--line);
 }
+.brand { display: flex; align-items: baseline; gap: 18px; }
 .wordmark { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+.topnav { display: flex; gap: 14px; font-size: 14px; }
+.topnav a { color: var(--muted); text-decoration: none; }
+.topnav a:hover { color: var(--text); text-decoration: underline; }
 
 .button {
   font: inherit; font-weight: 600; border: 1px solid transparent; border-radius: 6px; padding: 7px 16px;
@@ -57,9 +61,10 @@ img { display: block; }
 .button.small { font-size: 13px; padding: 4px 10px; }
 
 .banner {
-  display: flex; align-items: center; gap: 12px; flex: none; padding: 8px 20px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px; flex: none; padding: 8px 20px;
   background: var(--error); color: #fff;
 }
+.banner-link { color: inherit; font-weight: 600; text-decoration: underline; }
 .banner.neutral { background: var(--text); color: var(--bg); }
 
 .empty { flex: 1; display: flex; padding: 20px; min-height: 0; }
@@ -135,8 +140,9 @@ img { display: block; }
   font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); font-variant-numeric: tabular-nums;
 }
 
-.status { display: flex; align-items: center; gap: 14px; }
+.status { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
 .status.error { color: var(--error); }
+.status-link { color: var(--accent); font-size: 14px; }
 .progress { position: relative; width: 120px; height: 4px; background: var(--track); border-radius: 2px; overflow: hidden; }
 .progress::after {
   content: ""; position: absolute; inset: 0 auto 0 0; width: 40%; background: var(--accent);

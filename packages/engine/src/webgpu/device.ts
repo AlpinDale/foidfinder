@@ -14,7 +14,8 @@ export interface DeviceContext {
 /** Requests a WebGPU adapter and device with shader-f16 and optional subgroups/timestamps. */
 export async function requestDevice(): Promise<DeviceContext> {
   if (!("gpu" in navigator)) throw new Error("This browser has no WebGPU, which foidfinder needs to run the model");
-  const adapter = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
+  const adapter =
+    (await navigator.gpu.requestAdapter({ powerPreference: "high-performance" })) ?? (await navigator.gpu.requestAdapter());
   if (!adapter) throw new Error("WebGPU is turned on, but the browser offers no GPU to it");
   if (!adapter.features.has("shader-f16")) {
     throw new Error("This GPU or browser lacks 16-bit floats in WebGPU shaders (shader-f16), which the model needs");
