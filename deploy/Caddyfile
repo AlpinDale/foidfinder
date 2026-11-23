@@ -1,5 +1,5 @@
-# Serves the web UI from /srv/foidfinder/webui. Tagging runs in the visitor's browser (WebGPU), which downloads the
-# model from Hugging Face, so the site has no API and needs no GPU.
+# Serves the built web UI (apps/web/dist) from /srv/foidfinder/webui. Tagging runs in the visitor's browser
+# (WebGPU), which downloads the model from Hugging Face, so the site has no API and needs no GPU.
 foidfinder.net {
 	encode zstd gzip
 
