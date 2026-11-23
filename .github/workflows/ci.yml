@@ -15,11 +15,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
+
+      - name: Resolve release version
+        if: github.ref_type == 'tag'
+        run: echo "EXTENSION_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
 
       - run: npm ci
       - run: npm run lint
@@ -32,11 +38,7 @@ jobs:
       - name: Package extensions
         id: package
         run: |
-          version=$(node -p 'require("./apps/extension/public/manifest.json").version')
-          if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" != "v$version" ]]; then
-            echo "::error::tag $GITHUB_REF_NAME does not match the manifest version $version"
-            exit 1
-          fi
+          version=$(node -p 'require("./apps/extension/dist/chrome/manifest.json").version')
           chrome_zip="foidfinder-extension-$version.zip"
           firefox_zip="foidfinder-firefox-$version.zip"
           source_zip="foidfinder-source-$version.zip"

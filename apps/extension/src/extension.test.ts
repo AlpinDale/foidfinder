@@ -5,7 +5,7 @@ import type { TagResult } from "@foidfinder/engine";
 import { describe, expect, it } from "vitest";
 
 import { cardBody } from "./card";
-import { buildFirefoxManifest, FIREFOX_ADDON_ID, FIREFOX_MIN_VERSION } from "./manifest";
+import { buildChromeManifest, buildFirefoxManifest, FIREFOX_ADDON_ID, FIREFOX_MIN_VERSION, parseExtensionVersion } from "./manifest";
 import { refererRule } from "./referer";
 
 const RESULT: TagResult = {
@@ -96,6 +96,23 @@ describe("refererRule", () => {
     expect(refererRule(1, "data:image/png;base64,AAAA", "https://example.com/", "abc")).toBeNull();
     expect(refererRule(1, "https://example.com/a.png", "file:///tmp/page.html", "abc")).toBeNull();
     expect(refererRule(1, "not a url", "https://example.com/", "abc")).toBeNull();
+  });
+});
+
+describe("manifest versioning", () => {
+  it("normalizes and validates extension versions from git tags", () => {
+    expect(parseExtensionVersion("v0.3.0")).toBe("0.3.0");
+    expect(parseExtensionVersion("1.2.3.4")).toBe("1.2.3.4");
+    expect(() => parseExtensionVersion("v0.3.0-rc1")).toThrow();
+    expect(() => parseExtensionVersion("0.0.0")).toThrow();
+    expect(() => parseExtensionVersion("0.01.0")).toThrow();
+    expect(() => parseExtensionVersion("1.65536.0")).toThrow();
+  });
+
+  it("injects the resolved version into both Chrome and Firefox manifests", () => {
+    const chrome = JSON.parse(readFileSync(resolve(import.meta.dirname, "../public/manifest.json"), "utf8")) as Record<string, unknown>;
+    expect(buildChromeManifest(chrome, "v0.3.0").version).toBe("0.3.0");
+    expect(buildFirefoxManifest(chrome, "v0.3.0").version).toBe("0.3.0");
   });
 });
 

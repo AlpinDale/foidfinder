@@ -47,12 +47,14 @@ npm run build
   and Firefox zips to GitHub Releases on `v*` tags). The web UI deploys to
   Cloudflare Workers Static Assets via its GitHub integration on pushes to
   `master` (configured by `wrangler.jsonc`).
-- On `v*` tags, CI verifies that the tag matches `version` in
-  `apps/extension/public/manifest.json`, publishes a GitHub release, and
-  submits the Chrome zip to the Chrome Web Store via API v2 using Google Cloud
-  OIDC (`CWS_WIF_PROVIDER`, `CWS_SERVICE_ACCOUNT`, `CWS_PUBLISHER_ID`,
-  `CWS_EXTENSION_ID` repo variables). Keep manifest and workspace versions
-  aligned when cutting a release.
+- Extension version is derived from git tags (`v*`) at build time in
+  `apps/extension/vite.config.ts` (overridable via `EXTENSION_VERSION`, falling
+  back to `apps/extension/public/manifest.json` when no git tags exist). On
+  `v*` tags, CI sets `EXTENSION_VERSION` from the pushed tag, injects it into
+  both `dist/chrome/manifest.json` and `dist/firefox/manifest.json`, publishes
+  a GitHub release, and submits the Chrome zip to the Chrome Web Store via API
+  v2 using Google Cloud OIDC (`CWS_WIF_PROVIDER`, `CWS_SERVICE_ACCOUNT`,
+  `CWS_PUBLISHER_ID`, `CWS_EXTENSION_ID` repo variables).
 - Anchor root-only `.gitignore` rules with a leading `/` (for example
   `/models/`, `/.venv/`) so nested source directories are never silently
   excluded from Git.
